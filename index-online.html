@@ -240,8 +240,9 @@ renderCrafting();
 });
 
 function renderCrafting(){
-const search=(document.getElementById('craft-search')?.value||'').toLowerCase();
 const wrap=document.getElementById('crafting-view');
+const search=(document.getElementById('craft-search')?.value||'').toLowerCase();
+
 wrap.innerHTML='';
 
 const grouped={
@@ -260,7 +261,7 @@ wrap.appendChild(title);
 
 groupRecipes
 .filter(([name])=>name.toLowerCase().includes(search))
-.forEach(([name,recipe])=>{(([name,recipe])=>{
+.forEach(([name,recipe])=>{
 let possible=Infinity;
 
 Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
@@ -299,7 +300,6 @@ cloudState.inventory[ing]-=amount;
 });
 
 cloudState.inventory[name]=(cloudState.inventory[name]||0)+recipe.output;
-
 cloudState.production_history[name]=(cloudState.production_history[name]||0)+1;
 
 renderInventory();
@@ -314,7 +314,6 @@ cloudState.inventory[ing]+=amount;
 });
 
 cloudState.inventory[name]=Math.max(0,(cloudState.inventory[name]||0)-recipe.output);
-
 cloudState.production_history[name]-=1;
 
 renderInventory();
@@ -323,62 +322,14 @@ await saveCloudState();
 
 wrap.appendChild(card);
 });
+});
 }
 
-async function saveCloudState(){
-const { error } = await supabaseClient
-.from('app_state')
-.update({
-data: cloudState,
-updated_at: new Date().toISOString()
-})
-.eq('id',1);
-
-if(error){
-console.error(error);
-return;
+document.addEventListener('input',(e)=>{
+if(e.target.id==='craft-search'){
+renderCrafting();
 }
-}
-
-async function addWater(){
-cloudState.inventory['Вода']=(cloudState.inventory['Вода']||0)+1;
-renderInventory();
-await saveCloudState();
-}
-
-async function removeWater(){
-cloudState.inventory['Вода']=Math.max(0,(cloudState.inventory['Вода']||0)-1);
-renderInventory();
-await saveCloudState();
-}
-
-function startRealtime(){
-supabaseClient
-.channel('app_state_changes')
-.on(
-'postgres_changes',
-{
-event:'*',
-schema:'public',
-table:'app_state'
-},
-(payload)=>{
-console.log('REALTIME UPDATE',payload);
-
-if(payload.new && payload.new.data){
-cloudState = payload.new.data;
-renderInventory();
-}
-
-statusEl.innerHTML='Получено realtime обновление';
-
-setTimeout(()=>{
-statusEl.innerHTML='Подключено к realtime cloud storage';
-},1500);
-}
-)
-.subscribe();
-}
+});
 
 loadCloudState();
 startRealtime();
