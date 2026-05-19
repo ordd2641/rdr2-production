@@ -143,7 +143,7 @@ font-size:15px;
 .inventory-grid,
 .production-grid{
 display:grid;
-grid-template-columns:repeat(5,minmax(0,1fr));
+grid-template-columns:repeat(6,minmax(0,1fr));
 gap:16px;
 width:100%;
 }
@@ -544,10 +544,11 @@ inventoryView.appendChild(div);
 
 function renderCrafting(){
 craftingView.innerHTML='';
+craftingView.className='production-grid';
 
 const craftSearch=(document.getElementById('craft-search')?.value||'').toLowerCase();
 
-const groupedRecipes={
+const grouped={
 food:Object.entries(recipes)
 .filter(([_,r])=>r.category==='food')
 .sort((a,b)=>a[0].localeCompare(b[0],'ru')),
@@ -557,46 +558,40 @@ alcohol:Object.entries(recipes)
 .sort((a,b)=>a[0].localeCompare(b[0],'ru'))
 };
 
-Object.entries(groupedRecipes).forEach(([groupName,groupItems])=>{
-const section=document.createElement('div');
-section.style.gridColumn='1/-1';
-section.innerHTML=`<h2 style="color:#f0d9a1;border-bottom:1px solid #4a3828;padding-bottom:6px;margin:10px 0;">${groupName==='food'?'ЕДА':'АЛКОГОЛЬ'}</h2>`;
-craftingView.appendChild(section);
+Object.entries(grouped).forEach(([group,items])=>{
+const title=document.createElement('div');
+title.className='section-title';
+title.innerHTML=`<h2>${group==='food'?'ЕДА':'АЛКОГОЛЬ'}</h2>`;
+craftingView.appendChild(title);
 
-groupItems
+items
 .filter(([name])=>name.toLowerCase().includes(craftSearch))
 .forEach(([name,recipe])=>{
-let possible=Infinity;
+let possible=999999;
+let cost=0;
 
-Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+const ingredientsHtml=Object.entries(recipe.ingredients).map(([ing,amount])=>{
 const have=cloudState.inventory[ing]||0;
+const ok=have>=amount;
 possible=Math.min(possible,Math.floor(have/amount));
-});
+cost+=(cloudState.prices[ing]||0)*amount;
+
+return `<div style="color:${ok?'#86d986':'#ff7f7f'};font-size:13px;margin-bottom:4px;">(${have}) ${ing}: ${amount}</div>`;
+}).join('');
 
 if(!isFinite(possible)) possible=0;
 
-let craftCost=0;
-Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
-craftCost+=(cloudState.prices[ing]||0)*amount;
-});
-
 const card=document.createElement('div');
-card.className='card';
-
-const ingHtml=Object.entries(recipe.ingredients).map(([ing,amount])=>{
-const have=cloudState.inventory[ing]||0;
-const ok=have>=amount;
-return `<div style="color:${ok ? '#7fd67f' : '#ff7b7b'}">(${have}) ${ing}: ${amount}</div>`;
-}).join('');
+card.className='card production-item';
 
 card.innerHTML=`
 <h3>${name}</h3>
-<div style="font-size:12px;color:#c8b28a">Выход: x${recipe.output}</div>
-<div style="margin-top:10px">${ingHtml}</div>
-<div style="margin-top:10px">Крафтов: ${possible}</div>
-<div style="font-size:12px;color:#c8b28a;margin-top:4px">Себестоимость: $${craftCost.toFixed(2)}</div>
-<div style="display:flex;gap:8px;margin-top:10px">
-<button onclick="craftItem('${name}')">Произвести</button>
+<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Выход: x${recipe.output}</div>
+<div>${ingredientsHtml}</div>
+<div style="margin-top:12px;font-size:13px;">Можно создать: <b>${possible}</b></div>
+<div style="font-size:12px;color:var(--gold2);margin-top:6px;">Себестоимость: $${cost.toFixed(2)}</div>
+<div style="display:flex;gap:8px;margin-top:14px;">
+<button style="flex:1" onclick="craftItem('${name}')">Произвести</button>
 <button onclick="undoCraft('${name}')">↶</button>
 </div>
 `;
@@ -607,6 +602,125 @@ craftingView.appendChild(card);
 }
 
 function renderNeeded(){
+const products=document.getElementById('needed-products');
+const ingredients=document.getElementById('needed-ingredients');
+const shopping=document.getElementById('needed-shopping');
+
+products.innerHTML='';
+ingredients.innerHTML='';
+shopping.innerHTML='';
+
+const search=(document.getElementById('needed-search')?.value||'').toLowerCase();
+const totals={};
+
+const grouped={
+food:Object.entries(recipes)
+.filter(([_,r])=>r.category==='food')
+.filter(([name])=>name.toLowerCase().includes(search))
+.sort((a,b)=>a[0].localeCompare(b[0],'ru')),
+
+alcohol:Object.entries(recipes)
+.filter(([_,r])=>r.category==='alcohol')
+.filter(([name])=>name.toLowerCase().includes(search))
+.sort((a,b)=>a[0].localeCompare(b[0],'ru'))
+};
+
+Object.entries(grouped).forEach(([group,items])=>{
+const title=document.createElement('div');
+title.className='section-title';
+title.innerHTML=`<h3>${group==='food'?'ЕДА':'АЛКОГОЛЬ'}</h3>`;
+products.appendChild(title);
+
+items.forEach(([name,recipe])=>{
+if(cloudState.needed[name]==null){
+cloudState.needed[name]=0;
+}
+
+const value=cloudState.needed[name]||0;
+
+const card=document.createElement('div');
+card.className='card';
+card.style.marginBottom='12px';
+
+card.innerHTML=`
+<div style="font-weight:700;color:var(--gold);margin-bottom:6px;">${name}</div>
+<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Выход x${recipe.output}</div>
+<div style="display:flex;gap:8px;align-items:center;">
+<button class="minus-btn">-</button>
+<input type="number" value="${value}" style="width:80px;">
+<button class="plus-btn">+</button>
+</div>
+`;
+
+const input=card.querySelector('input');
+const plus=card.querySelector('.plus-btn');
+const minus=card.querySelector('.minus-btn');
+
+input.oninput=async()=>{
+cloudState.needed[name]=parseInt(input.value)||0;
+renderNeeded();
+await saveCloudState();
+};
+
+plus.onclick=async()=>{
+cloudState.needed[name]=(cloudState.needed[name]||0)+1;
+renderNeeded();
+await saveCloudState();
+};
+
+minus.onclick=async()=>{
+cloudState.needed[name]=Math.max(0,(cloudState.needed[name]||0)-1);
+renderNeeded();
+await saveCloudState();
+};
+
+products.appendChild(card);
+
+if(value>0){
+Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+if(!totals[ing]) totals[ing]=0;
+totals[ing]+=amount*value;
+});
+}
+});
+});
+
+Object.entries(totals)
+.sort((a,b)=>a[0].localeCompare(b[0],'ru'))
+.forEach(([ing,total])=>{
+const have=cloudState.inventory[ing]||0;
+const miss=Math.max(0,total-have);
+const price=cloudState.prices[ing]||0;
+
+const ingCard=document.createElement('div');
+ingCard.className='card';
+ingCard.style.marginBottom='12px';
+ingCard.innerHTML=`
+<div style="font-weight:700;color:var(--gold);">${ing}</div>
+<div style="margin-top:6px;">Нужно: ${total}</div>
+<div>На складе: ${have}</div>
+<div style="color:${miss>0?'#ff7f7f':'#86d986'};margin-top:6px;">
+${miss>0?`Не хватает: ${miss}`:'Хватает'}
+</div>
+`;
+
+ingredients.appendChild(ingCard);
+
+if(miss>0){
+const shop=document.createElement('div');
+shop.className='card';
+shop.style.marginBottom='12px';
+shop.innerHTML=`
+<div style="font-weight:700;color:var(--gold);">${ing}</div>
+<div style="margin-top:6px;">Количество: ${miss}</div>
+<div style="margin-top:6px;color:var(--gold2);">Сумма: $${(miss*price).toFixed(2)}</div>
+`;
+shopping.appendChild(shop);
+}
+});
+}
+
+document.addEventListener(){
 const products=document.getElementById('needed-products');
 const ingredients=document.getElementById('needed-ingredients');
 const shopping=document.getElementById('needed-shopping');
