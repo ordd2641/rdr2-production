@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Калькулятор производства</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Roboto+Condensed:wght@300;400;700&display=swap');
+
+body{
+margin:0;
+background:#15110d;
+background-image:linear-gradient(rgba(0,0,0,.82),rgba(0,0,0,.82)),url('https://images.unsplash.com/photo-1511884642898-4c92249e20b6?q=80&w=1600&auto=format&fit=crop');
+background-size:cover;
+background-attachment:fixed;
+color:#f3e7c9;
+font-family:'Roboto Condensed',sans-serif;
+}
+
+header{
+padding:20px;
+text-align:center;
+border-bottom:1px solid #4b3928;
+font-size:32px;
+font-family:'Cinzel',serif;
+letter-spacing:2px;
+background:rgba(20,15,12,.95);
+backdrop-filter:blur(4px);
+text-transform:uppercase;
+color:#f0d9a1;
+box-shadow:0 2px 12px rgba(0,0,0,.4);
+}
+
+.tabs{
+display:flex;
+flex-wrap:wrap;
+background:rgba(17,12,10,.95);
+border-bottom:1px solid #4b3928;
+position:sticky;
+top:0;
+z-index:1000;
+backdrop-filter:blur(6px);
+box-shadow:0 3px 10px rgba(0,0,0,.35);
+}
+
+.tab{
+padding:14px 18px;
+cursor:pointer;
+border-right:1px solid #3d2d20;
+transition:.2s;
+font-weight:600;
+letter-spacing:.5px;
+color:#c8b28a;
+}
+
+.tab:hover{
+background:#2a1e16;
+color:#f3d9a4;
+}
+
+.tab.active{
+background:#3b291d;
+color:#ffdf9f;
+box-shadow:inset 0 -2px 0 #c89b3c;
+}
+
+.content{padding:18px}
+.hidden{display:none}
+
+h2,h3{
+font-family:'Cinzel',serif;
+letter-spacing:1px;
+color:#f0d9a1;
+}
+
+input{
+background:#221913;
+border:1px solid #4a3828;
+color:#f3e7c9;
+padding:8px;
+box-sizing:border-box;
+border-radius:6px;
+}
+
+button{
+border-radius:6px!important;
+transition:.15s;
+font-weight:600;
+}
+
+button:hover{
+transform:translateY(-1px);
+filter:brightness(1.1);
+}
+
+#recipes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+#possible-food-list{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+#possible-alcohol-list,#inventory-list{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+
+.recipe-card,
+.craft-item,
+.inventory-item{
+background:rgba(28,20,16,.93);
+border:1px solid #4e3a29;
+border-radius:12px;
+padding:14px;
+box-shadow:0 4px 14px rgba(0,0,0,.35);
+backdrop-filter:blur(2px);
+}
+
+.recipe-card:hover,
+.craft-item:hover,
+.inventory-item:hover{
+border-color:#8b6a3f;
+box-shadow:0 6px 18px rgba(0,0,0,.45);
+}
+
+.inventory-item label{
+display:block;
+font-size:13px;
+margin-bottom:4px;
+font-weight:bold;
+color:#f0d9a1;
+}
+
+.ingredients{
+margin-top:10px;
+color:#d5c2a1;
+font-size:14px;
+line-height:1.5;
+}
+
+.available{
+color:#7fd67f;
+text-shadow:0 0 6px rgba(127,214,127,.25);
+}
+
+.not-available{
+color:#ff7b7b;
+text-shadow:0 0 6px rgba(255,123,123,.2);
+}
+
+::-webkit-scrollbar{
+width:10px;
+height:10px;
+}
+
+::-webkit-scrollbar-track{
+background:#1b140f;
+}
+
+::-webkit-scrollbar-thumb{
+background:#5a422d;
+border-radius:10px;
+}
+
+::-webkit-scrollbar-thumb:hover{
+background:#7a593d;
+}
+</style>
+</head>
+<body>
+<header>Калькулятор производства</header>
+
+<div class="tabs">
+<div class="tab active" onclick="openTab('inventory',this)">Склад</div>
+
+<div class="tab" onclick="openTab('possible-food',this)">Что можно создать - ЕДА</div>
+<div class="tab" onclick="openTab('possible-alcohol',this)">Что можно создать - АЛКОГОЛЬ</div>
+<div class="tab" onclick="openTab('needed',this)">Что нужно</div>
+<div class="tab" onclick="openTab('sync',this)">Синхронизация</div>
+</div>
+
+
+</div>
+
+<div id="inventory" class="content">
+<h2>Склад</h2>
+<input id="inventory-search" placeholder="Поиск ингредиента..." style="width:100%;margin-bottom:15px" oninput="renderInventory()">
+<div id="inventory-list"></div>
+</div>
+
+<div id="possible-food" class="content hidden">
+<h2>Что можно создать. ЕДА</h2>
+<input id="possible-food-search" placeholder="Поиск еды..." style="width:100%;margin-bottom:15px" oninput="renderPossible()">
+<div id="possible-food-list"></div>
+</div>
+
+<div id="possible-alcohol" class="content hidden">
+<h2>Что можно создать. АЛКОГОЛЬ</h2>
+<input id="possible-alcohol-search" placeholder="Поиск алкоголя..." style="width:100%;margin-bottom:15px" oninput="renderPossibleAlcohol()">
+<div id="possible-alcohol-list"></div>
+</div>
+
+<div id="sync" class="content hidden">
+<h2>Синхронизация</h2>
+
+<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
+<button onclick="exportData()" style="padding:12px 20px;background:#222;color:#fff;border:1px solid #444;cursor:pointer;">Экспорт</button>
+
+<label style="padding:12px 20px;background:#222;color:#fff;border:1px solid #444;cursor:pointer;display:inline-block;">
+Импорт
+<input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+</label>
+</div>
+
+<div style="margin-top:20px;color:#999;font-size:14px;line-height:1.6;">
+Экспортирует и импортирует:<br>
+- склад<br>
+- цены<br>
+- производство<br>
+- список "что нужно"
+</div>
+</div>
+
+<div id="needed" class="content hidden">
+<h2>Что нужно</h2>
+<input id="needed-search" placeholder="Поиск товара..." style="width:100%;margin-bottom:15px" oninput="renderNeeded()">
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:20px;align-items:start;">
+<div id="needed-products"></div>
+<div>
+<h3>Заказано</h3>
+<div id="needed-ordered"></div>
+</div>
+
+<div>
+<h3>Необходимые ингредиенты</h3>
+<div id="needed-ingredients"></div>
+</div>
+
+<div>
+<h3>Список для магазина</h3>
+<div id="needed-shopping"></div>
+</div>
+</div>
+</div>
+
+<script>
+const foodRecipes={
+"Картошка с мясом":{output:2,ingredients:{"Дикая морковь":2,"Дикий чеснок":1,"Картофель":2,"Мясо дичи":1}},
+"Жареный кролик по-апалачски":{output:2,ingredients:{"Вода":1,"Картофель":1,"Мука":1,"Мясо дичи":1,"Соль":1}},
+"Приправленная крупная дичь":{output:2,ingredients:{"Вода":1,"Мясо крупной дичи":1,"Редис":1,"Соль":1}},
+"Приправленная свиная отбивная":{output:2,ingredients:{"Вода":1,"Свинина":1,"Соль":1,"Шпинат":1}},
+"Жареные котлеты":{output:2,ingredients:{"Вода":1,"Говядина":1,"Животный жир":1,"Соль":1}},
+"Цыпленок табака":{output:2,ingredients:{"Вода":1,"Дикая морковь":1,"Душница":2,"Мясо птицы":1}},
+"Кофе":{output:1,ingredients:{"Вода":1,"Молотый кофе":1}},
+"Чай из женьшеня":{output:1,ingredients:{"Вода":1,"Американский женьшень":1,"Сахар":1}},
+"Чай пузэр":{output:1,ingredients:{"Вода":1,"Американский женьшень":3,"Сахар":3}},
+"Черничный компот":{output:1,ingredients:{"Вода":1,"Груша":1,"Сахар":2,"Черника":2}},
+"Штрудель":{output:1,ingredients:{"Молоко":1,"Мука":1,"Сахар":1,"Яблоко":2,"Яйцо":1}},
+"Суп чероки":{output:4,ingredients:{"Вода":1,"Дикая морковь":1,"Душница":1,"Картофель":2,"Кукуруза":1,"Оленина":1,"Ползучий тимьян":1,"Соль":1}},
+"Тушеное мясо по-апалачски":{output:3,ingredients:{"Вода":1,"Дикая морковь":1,"Дикий чеснок":1,"Кукуруза":2,"Оленина":1,"Ползучий тимьян":1,"Соль":1}}
+};
+
+const alcoholRecipes={
+"Абсент":{output:1,ingredients:{"Вода":1,"Агава":2,"Алоэ":2,"Дикая мята":1,"Спирт":1}},
+"Бабушкин самогон":{output:1,ingredients:{"Вода":1,"Сахар":4,"Спирт":1,"Тысячелистник":3}},
+"Байцзю":{output:1,ingredients:{"Вода":1,"Аляскинский женьшень":1,"Рис":3,"Спирт":1}},
+"Бурбон":{output:1,ingredients:{"Вода":1,"Аляскинский женьшень":2,"Американский женьшень":1,"Спирт":1}},
+"Водка Бутчерс-Крик":{output:1,ingredients:{"Вода":1,"Спирт":1,"Тысячелистник":3,"Хмель":4}},
+"Глинтвейн":{output:1,ingredients:{"Виноград":1,"Дикая мята":2,"Спирт":1,"Черника":1}},
+"Грелка для кишечника":{output:1,ingredients:{"Вода":1,"Молочай":1,"Спирт":1,"Хмель":4}},
+"Дикий первач":{output:1,ingredients:{"Вода":1,"Картофель":3,"Сахар":3,"Спирт":1}},
+"Домашний душок":{output:1,ingredients:{"Вода":1,"Змеиная ягода":5,"Сахар":3,"Спирт":1}},
+"Змеиное вино":{output:1,ingredients:{"Вода":1,"Виноград":1,"Змеиный яд":1,"Спирт":1}},
+"Красное вино":{output:1,ingredients:{"Виноград":2,"Спирт":1}},
+"Крестьянский жар":{output:1,ingredients:{"Вода":1,"Груша":6,"Сахар":3,"Спирт":1}},
+"Крысиная настойка":{output:1,ingredients:{"Стеклянная бутылка":1,"Бытовой хлам":2,"Кровавый цветок":1,"Крыса":1,"Спирт":1}},
+"Кукурузный самогон":{output:1,ingredients:{"Вода":1,"Кукуруза":5,"Сахар":4,"Спирт":1}},
+"Лунный огонек":{output:1,ingredients:{"Вода":1,"Американский женьшень":5,"Сахар":3,"Спирт":1}},
+"Ночной эликсир":{output:1,ingredients:{"Вода":1,"Дикая мята":4,"Сахар":4,"Спирт":1}},
+"Огненная бражка":{output:1,ingredients:{"Вода":1,"Агава":4,"Сахар":4,"Спирт":1}},
+"Персиковый самогон":{output:1,ingredients:{"Вода":1,"Персик":5,"Сахар":4,"Спирт":1}},
+"Ром":{output:1,ingredients:{"Вода":1,"Сахар":2,"Спирт":1}},
+"Сельский блеск":{output:1,ingredients:{"Вода":1,"Пшеница":4,"Сахар":4,"Спирт":1}},
+"Спирт":{output:1,ingredients:{"Вода":1,"Кукуруза":2,"Сахар":2,"Хмель":3}},
+"Тайная бражка":{output:1,ingredients:{"Вода":1,"Сахар":3,"Спирт":1,"Чок Дейзи":3}},
+"Текила Дон Хулио":{output:1,ingredients:{"Виноград":1,"Дикая мята":2,"Спирт":1,"Черника":1}},
+"Фермерский тайник":{output:1,ingredients:{"Вода":1,"Алоэ":5,"Сахар":4,"Спирт":1}},
+"Черничный самогон":{output:1,ingredients:{"Вода":1,"Сахар":4,"Спирт":1,"Черника":5}},
+"Эйфория каннабис":{output:1,ingredients:{"Яблоко":1,"Дикая мята":1,"Листья каннабиса":2,"Ползучий тимьян":1,"Спирт":1}},
+"Яблочный самогон":{output:1,ingredients:{"Вода":1,"Сахар":4,"Спирт":1,"Яблоко":5}}
+};
+
+const allRecipes={...foodRecipes,...alcoholRecipes};
+const allIngredients=[...new Set(Object.values(allRecipes).flatMap(r=>Object.keys(r.ingredients)))].sort();
+
+let inventory=JSON.parse(localStorage.getItem('inventory')||'{}');
+let prices=JSON.parse(localStorage.getItem('prices')||'{}');
+
+allIngredients.forEach(i=>{if(inventory[i]==null)inventory[i]=0;if(prices[i]==null)prices[i]=0;});
+
+function save(){localStorage.setItem('inventory',JSON.stringify(inventory));localStorage.setItem('prices',JSON.stringify(prices));}
+
+function openTab(id,el){document.querySelectorAll('.content').forEach(c=>c.classList.add('hidden'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById(id).classList.remove('hidden');el.classList.add('active');}
+
+function cost(recipe){let t=0;Object.entries(recipe.ingredients).forEach(([i,a])=>t+=(prices[i]||0)*a);return t.toFixed(2)}
+
+function renderCards(containerId,data,search=''){
+const c=document.getElementById(containerId);c.innerHTML='';
+Object.entries(data).filter(([n])=>n.toLowerCase().includes(search.toLowerCase())).forEach(([name,recipe])=>{
+let ing='';Object.entries(recipe.ingredients).forEach(([i,a])=>ing+=`<div>${i}: ${a}</div>`);
+const d=document.createElement('div');d.className='recipe-card';
+d.innerHTML=`<h3>${name}</h3><div style='font-size:12px;color:#b89f74;margin-top:-4px;margin-bottom:8px'>Выход за крафт: x${recipe.output}</div><div class='ingredients'>${ing}</div><div style='font-size:12px;color:#888;margin-top:8px'>Себестоимость: $${cost(recipe)}</div>`;
+c.appendChild(d);
+});}
+
+function renderFoodRecipes(){renderCards('recipes',foodRecipes,document.getElementById('food-search').value)}
+function renderAlcoholRecipes(){renderCards('alcohol-recipes',alcoholRecipes,document.getElementById('alcohol-search').value)}
+
+function renderInventory(){
+const c=document.getElementById('inventory-list');
+c.innerHTML='';
+
+const search=(document.getElementById('inventory-search')?.value||'').toLowerCase();
+
+allIngredients
+.filter(item=>item.toLowerCase().includes(search))
+.forEach(item=>{const d=document.createElement('div');d.className='inventory-item';d.innerHTML=`<label>${item}</label><div style='display:flex;align-items:center;gap:6px;margin-bottom:4px'><span style='font-size:12px;color:#aaa;min-width:45px'>Кол-во</span><input type='number' value='${inventory[item]}'></div><div style='display:flex;align-items:center;gap:6px'><span style='font-size:12px;color:#aaa;min-width:45px'>Цена</span><input type='number' step='0.01' value='${prices[item]}'></div>`;const inp=d.querySelectorAll('input');inp[0].oninput=()=>{inventory[item]=parseInt(inp[0].value)||0;save();renderPossible();renderPossibleAlcohol();renderNeeded();};inp[1].oninput=()=>{prices[item]=parseFloat(inp[1].value)||0;save();renderFoodRecipes();renderAlcoholRecipes();renderPossible();renderPossibleAlcohol();};c.appendChild(d);});}
+
+function renderPossibleGeneric(containerId,data,search=''){
+const c=document.getElementById(containerId);
+c.innerHTML='';
+
+Object.entries(data)
+.filter(([name])=>name.toLowerCase().includes(search.toLowerCase()))
+.forEach(([name,recipe])=>{let p=Infinity;let miss=[];Object.entries(recipe.ingredients).forEach(([i,a])=>{const h=inventory[i]||0;p=Math.min(p,Math.floor(h/a));if(h<a)miss.push(`${i}: ${a-h}`)});let ing=Object.entries(recipe.ingredients).map(([i,a])=>{
+const have=inventory[i]||0;
+const ok=have>=a;
+return `<span style='color:${ok ? '#7fd67f' : '#ff7b7b'}'>(${have}) ${i}: ${a}</span>`;
+}).join('<br>');const d=document.createElement('div');d.className='craft-item';if(p>0){d.innerHTML=`<h3 class='available'>✔ ${name}</h3><div style='font-size:12px;color:#b89f74;margin-top:-4px;margin-bottom:8px'>Выход за крафт: x${recipe.output}</div><div>Крафтов доступно: ${p}</div><div style='font-size:12px;color:#888;margin-top:4px'>Итоговый выход: ${p*recipe.output} шт.</div><div style='font-size:12px;color:#999;margin-top:8px'>${ing}</div>`;
+d.innerHTML+=`<div style='font-size:12px;color:#88a;margin-top:6px'>Себестоимость: $${cost(recipe)}</div>`;
+addProductionControls(d,name,recipe,p);
+}else{d.innerHTML=`<h3 class='not-available'>✖ ${name}</h3><div style='font-size:12px;color:#b89f74;margin-top:-4px;margin-bottom:8px'>Выход за крафт: x${recipe.output}</div><div style='font-size:12px;color:#999;margin-top:8px'>${ing}</div><div style='margin-top:8px'>${miss.join('<br>')}</div>`;
+addProductionControls(d,name,recipe,0);
+}c.appendChild(d);});}
+
+function renderPossible(){
+const search=document.getElementById('possible-food-search')?.value||'';
+renderPossibleGeneric('possible-food-list',foodRecipes,search);
+}
+function renderPossibleAlcohol(){
+const search=document.getElementById('possible-alcohol-search')?.value||'';
+renderPossibleGeneric('possible-alcohol-list',alcoholRecipes,search);
+}
+
+function addProductionControls(d,name,recipe,possible){
+const controls=document.createElement('div');
+controls.style.marginTop='10px';
+
+controls.innerHTML=`
+<div style='display:flex;gap:6px;align-items:center'>
+<button class='craft-btn' style='flex:1;background:#222;color:#fff;border:1px solid #444;padding:8px;cursor:pointer'>Произвести</button>
+<button class='undo-btn' style='width:32px;background:#333;color:#fff;border:1px solid #555;cursor:pointer'>↶</button>
+</div>
+<div style='font-size:12px;color:#888;margin-top:6px'>Можно сделать: ${possible * recipe.output} шт.</div>
+`;
+
+const craftBtn=controls.querySelector('.craft-btn');
+const undoBtn=controls.querySelector('.undo-btn');
+
+craftBtn.onclick=()=>{
+let canCraft=true;
+
+Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+if((inventory[ing]||0)<amount){
+canCraft=false;
+}
+});
+
+if(!canCraft)return;
+
+Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+inventory[ing]-=amount;
+});
+
+if(name==='Спирт'){
+inventory['Спирт']=(inventory['Спирт']||0)+1;
+}
+
+const history=JSON.parse(localStorage.getItem('production_history')||'{}');
+history[name]=(history[name]||0)+1;
+localStorage.setItem('production_history',JSON.stringify(history));
+
+save();
+renderInventory();
+renderPossible();
+renderPossibleAlcohol();
+renderNeeded();
+};
+
+undoBtn.onclick=()=>{
+const history=JSON.parse(localStorage.getItem('production_history')||'{}');
+
+if(!history[name]||history[name]<=0)return;
+
+Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+inventory[ing]+=amount;
+});
+
+history[name]-=1;
+localStorage.setItem('production_history',JSON.stringify(history));
+
+save();
+renderInventory();
+renderPossible();
+renderPossibleAlcohol();
+renderNeeded();
+};
+
+d.appendChild(controls);
+}
+
+function renderNeeded(){
+const p=document.getElementById('needed-products');
+const o=document.getElementById('needed-ordered');
+const i=document.getElementById('needed-ingredients');
+const s=document.getElementById('needed-shopping');
+
+p.innerHTML='';
+o.innerHTML='';
+i.innerHTML='';
+s.innerHTML='';
+
+const searchNeeded=(document.getElementById('needed-search')?.value||'').toLowerCase();
+
+const totals={};
+
+const renderCategory=(titleText,recipesObj)=>{
+const title=document.createElement('div');
+title.style.gridColumn='1/-1';
+title.style.fontWeight='bold';
+title.style.fontSize='20px';
+title.style.margin='10px 0';
+title.innerText=titleText;
+p.appendChild(title);
+
+Object.entries(recipesObj)
+.filter(([name])=>name.toLowerCase().includes(searchNeeded))
+.sort((a,b)=>a[0].localeCompare(b[0],'ru'))
+.forEach(([name,recipe])=>{
+const val=parseInt(localStorage.getItem('need_'+name)||0);
+
+const d=document.createElement('div');
+d.className='inventory-item';
+d.style.marginBottom='8px';
+
+d.innerHTML=`<label>${name} <span style='color:#888;font-size:12px'>(x${recipe.output})</span></label><div style='display:flex;gap:6px;align-items:center'><span style='font-size:12px;color:#aaa;width:55px'>Нужно</span><button class='minus-btn' style='width:24px;height:24px;background:#222;color:#fff;border:1px solid #444;cursor:pointer'>-</button><input type='number' min='0' value='${val}' style='width:70px'><button class='plus-btn' style='width:24px;height:24px;background:#222;color:#fff;border:1px solid #444;cursor:pointer'>+</button></div>`;
+
+const input=d.querySelector('input');
+const plus=d.querySelector('.plus-btn');
+const minus=d.querySelector('.minus-btn');
+
+let inputTimer;
+
+input.oninput=(e)=>{
+clearTimeout(inputTimer);
+localStorage.setItem('need_'+name,e.target.value||0);
+
+inputTimer=setTimeout(()=>{
+renderNeeded();
+},300);
+};
+
+plus.onclick=()=>{
+input.value=(parseInt(input.value)||0)+1;
+localStorage.setItem('need_'+name,input.value);
+renderNeeded();
+};
+
+minus.onclick=()=>{
+input.value=Math.max(0,(parseInt(input.value)||0)-1);
+localStorage.setItem('need_'+name,input.value);
+renderNeeded();
+};
+
+p.appendChild(d);
+
+if(val>0){
+const ordered=document.createElement('div');
+ordered.className='craft-item';
+ordered.style.marginBottom='8px';
+ordered.innerHTML=`<div><b>${name}</b></div><div>Заказано крафтов: ${val}</div><div>Итоговый выход: ${val*recipe.output}</div>`;
+o.appendChild(ordered);
+
+const crafts=val;
+Object.entries(recipe.ingredients).forEach(([ing,a])=>{
+if(!totals[ing])totals[ing]=0;
+totals[ing]+=a*crafts;
+});
+}
+});
+};
+
+renderCategory('ЕДА',foodRecipes);
+renderCategory('АЛКОГОЛЬ',alcoholRecipes);
+
+let shoppingText='';
+
+Object.entries(totals).forEach(([ing,a])=>{const have=inventory[ing]||0;const miss=Math.max(0,a-have);const d=document.createElement('div');d.className='craft-item';d.innerHTML=`<div><b>${ing}</b></div><div>Нужно: ${a}</div><div>На складе: ${have}</div><div style='color:${miss>0?'#ff5c5c':'#57d157'}'>${miss>0?'Не хватает: '+miss:'Хватает'}</div>`;i.appendChild(d);
+
+if(miss>0){shoppingText+=`${ing} - ${miss}<br>`;}});
+
+s.innerHTML=`<div class='craft-item' style='font-size:14px;line-height:1.6'>${shoppingText || 'Все ингредиенты есть на складе'}</div>`;
+}
+
+function exportData(){
+const needed={};
+
+Object.keys(localStorage).forEach(key=>{
+if(key.startsWith('need_')){
+needed[key]=localStorage.getItem(key);
+}
+});
+
+const data={
+inventory,
+prices,
+needed,
+production_history:JSON.parse(localStorage.getItem('production_history')||'{}')
+};
+
+const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+const url=URL.createObjectURL(blob);
+
+const a=document.createElement('a');
+a.href=url;
+a.download='warehouse-save.json';
+a.click();
+
+URL.revokeObjectURL(url);
+}
+
+function importData(event){
+const file=event.target.files[0];
+if(!file)return;
+
+const reader=new FileReader();
+
+reader.onload=(e)=>{
+try{
+console.log('IMPORT DATA START');
+const data=JSON.parse(e.target.result);
+console.log(data);
+
+if(data.inventory){
+inventory={...inventory,...data.inventory};
+localStorage.setItem('inventory',JSON.stringify(inventory));
+}
+
+if(data.prices){
+prices={...prices,...data.prices};
+localStorage.setItem('prices',JSON.stringify(prices));
+}
+
+if(data.production_history){
+localStorage.setItem('production_history',JSON.stringify(data.production_history));
+}
+
+if(data.needed){
+Object.entries(data.needed).forEach(([key,val])=>{
+localStorage.setItem(key,val);
+});
+}
+
+renderInventory();
+renderPossible();
+renderPossibleAlcohol();
+renderNeeded();
+
+alert('Данные успешно импортированы');
+}catch(err){
+console.error(err);
+alert('Ошибка импорта файла');
+}
+};
+
+reader.readAsText(file);
+}
+
+renderInventory();renderPossible();renderPossibleAlcohol();renderNeeded();
+</script>
+</body>
+</html>
