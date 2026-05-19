@@ -24,7 +24,7 @@ padding:20px;
 width:100%;
 max-width:none;
 box-sizing:border-box;
-backgroua(28,20,16,.93);
+background:rgba(28,20,16,.93);
 border:1px solid #4e3a29;
 padding:20px;
 border-radius:12px;
@@ -55,13 +55,84 @@ background:#3a321f;
 color:#f0d9a1;
 }
 .inventory-grid{
-width:100%;
-max-width:none;
 display:grid !important;
-grid-template-columns:repeat(auto-fit,minmax(240px,1fr)) !important;
+grid-template-columns:repeat(5,minmax(0,1fr)) !important;
 gap:12px !important;
 align-items:start;
 width:100%;
+max-width:none;
+padding:0;
+margin:0;
+}
+
+.inventory-grid .card{
+background:rgba(28,20,16,.93);
+border:1px solid #4e3a29;
+border-radius:10px;
+padding:12px;
+min-height:170px;
+display:flex;
+flex-direction:column;
+justify-content:space-between;
+}
+
+.production-grid{
+display:grid !important;
+grid-template-columns:repeat(5,minmax(0,1fr)) !important;
+gap:12px !important;
+align-items:start;
+width:100%;
+}
+
+.production-grid .card{
+background:rgba(28,20,16,.93);
+border:1px solid #4e3a29;
+border-radius:10px;
+padding:12px;
+min-height:250px;
+display:flex;
+flex-direction:column;
+}
+
+.needed-layout{
+display:grid;
+grid-template-columns:1.4fr 1fr 1fr;
+gap:18px;
+align-items:start;
+width:100%;
+}
+
+.needed-column{
+background:rgba(28,20,16,.93);
+border:1px solid #4e3a29;
+border-radius:10px;
+padding:14px;
+min-height:700px;
+}
+
+.needed-column h3{
+margin-top:0;
+color:#f0d9a1;
+font-family:'Cinzel',serif;
+font-size:18px;
+border-bottom:1px solid #4a3828;
+padding-bottom:8px;
+margin-bottom:14px;
+}
+
+.tab-section{
+width:100%;
+max-width:none;
+padding:0;
+margin:0;
+}
+
+.main-wrapper{
+width:100%;
+max-width:none;
+margin:0 auto;
+padding:0 10px 20px;
+box-sizing:border-box;
 }
 
 .inventory-grid .card{
@@ -87,8 +158,10 @@ grid-template-columns:repeat(3,minmax(0,1fr)) !important;
 
 </style>
 </head>
-<body><body>
-<div style="width:100%;max-width:none;padding:0 12px;box-sizing:border-box;">le>
+<body>
+<div class="main-wrapper">
+
+<style>
 .tabs{
 display:flex;
 flex-wrap:wrap;
@@ -167,7 +240,7 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 <div style="margin-bottom:18px;">
 <input id="craft-search" type="text" placeholder="Поиск рецепта..." style="width:100%;padding:10px 12px;background:#1b1410;border:1px solid #4a3828;color:#f3e7c9;border-radius:8px;font-size:14px;">
 </div>
-<div id="crafting-view" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px"></div>
+<div id="crafting-view" class="production-grid"></div>
 </div>
 
 </div>
@@ -180,10 +253,22 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 
 <input id="needed-search" placeholder="Поиск товара..." style="width:100%;padding:10px;background:rgba(28,20,16,.93);border:1px solid #4e3a29;color:#f3e7c9;border-radius:8px;margin-bottom:18px;">
 
-<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:20px;align-items:start;">
+<div class="needed-layout">
+<div class="needed-column">
+<h3>Заказано</h3>
 <div id="needed-products"></div>
+</div>
+
+<div class="needed-column">
+<h3>Необходимые ингредиенты</h3>
 <div id="needed-ingredients"></div>
+</div>
+
+<div class="needed-column">
+<h3>Список для магазина</h3>
 <div id="needed-shopping"></div>
+</div>
+
 </div>
 </div>
 </div>
@@ -447,10 +532,14 @@ const value=cloudState.needed[name]||0;
 const card=document.createElement('div');
 card.className='card';
 card.style.marginBottom='10px';
+card.style.padding='12px';
+
+const orderedAmount=value*recipe.output;
 
 card.innerHTML=`
-<div style='font-weight:bold'>${name}</div>
-<div style='font-size:12px;color:#b89f74;margin-bottom:10px'>Выход x${recipe.output}</div>
+<div style='font-weight:bold;color:#f0d9a1'>${name}</div>
+<div style='font-size:12px;color:#b89f74;margin-bottom:6px'>Выход x${recipe.output}</div>
+<div style='font-size:12px;color:#7fd67f;margin-bottom:10px'>Заказано: ${orderedAmount}</div>
 <div style='display:flex;gap:6px;align-items:center'>
 <button class='minus-btn'>-</button>
 <input type='number' value='${value}' style='width:70px'>
@@ -594,5 +683,6 @@ color:#ffdf9f;
 box-shadow:inset 0 -2px 0 #c89b3c;
 }
 </style>
-</body</div>
-</body>l>
+</div>
+</body>
+</html>
