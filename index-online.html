@@ -143,6 +143,9 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 
 <div style="margin-top:30px;border-top:1px solid #4a3828;padding-top:20px;">
 <h2>Online склад</h2>
+<div style="margin-bottom:18px;">
+<input id="inventory-search" type="text" placeholder="Поиск ингредиента..." style="width:100%;padding:10px 12px;background:#1b1410;border:1px solid #4a3828;color:#f3e7c9;border-radius:8px;font-size:14px;">
+</div>
 
 <input id="inventory-search" placeholder="Поиск ингредиента..." style="width:100%;padding:10px;background:#221913;border:1px solid #4a3828;color:#f3e7c9;border-radius:8px;margin-bottom:18px;">
 
@@ -158,6 +161,9 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 <div class="card">
 <div style="margin-top:40px;border-top:1px solid #4a3828;padding-top:20px;">
 <h2>Online производство</h2>
+<div style="margin-bottom:18px;">
+<input id="craft-search" type="text" placeholder="Поиск рецепта..." style="width:100%;padding:10px 12px;background:#1b1410;border:1px solid #4a3828;color:#f3e7c9;border-radius:8px;font-size:14px;">
+</div>
 
 <input id="craft-search" placeholder="Поиск рецепта..." style="width:100%;padding:10px;background:#221913;border:1px solid #4a3828;color:#f3e7c9;border-radius:8px;margin-bottom:18px;">
 <div id="crafting-view" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px"></div>
@@ -357,8 +363,26 @@ craftingView.innerHTML='';
 
 const craftSearch=(document.getElementById('craft-search')?.value||'').toLowerCase();
 
-Object.entries(recipes)
+const groupedRecipes={
+food:Object.entries(recipes)
+.filter(([_,r])=>r.category==='food')
+.sort((a,b)=>a[0].localeCompare(b[0],'ru')),
+
+alcohol:Object.entries(recipes)
+.filter(([_,r])=>r.category==='alcohol')
+.sort((a,b)=>a[0].localeCompare(b[0],'ru'))
+};
+
+Object.entries(groupedRecipes).forEach(([groupName,groupItems])=>{
+const section=document.createElement('div');
+section.style.gridColumn='1/-1';
+section.style.margin='10px 0 0 0';
+section.innerHTML=`<h2 style="color:#f0d9a1;border-bottom:1px solid #4a3828;padding-bottom:6px;">${groupName==='food'?'ЕДА':'АЛКОГОЛЬ'}</h2>`;
+craftingView.appendChild(section);
+
+groupItems
 .filter(([name])=>name.toLowerCase().includes(craftSearch))
+.forEach(([name])=>name.toLowerCase().includes(craftSearch))
 .forEach(([name,recipe])=>{
 let possible=Infinity;
 
@@ -397,6 +421,7 @@ card.innerHTML=`
 `;
 
 craftingView.appendChild(card);
+});
 });
 }
 
