@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RDR2 Production Online</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Roboto+Condensed:wght@300;400;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body{
+min-width:1400px;
+margin:0;
+background:#15110d;
+color:#f3e7c9;
+font-family:'Roboto Condensed',sans-serif;
+padding:20px 28px;
+}
+
+.card{
+box-sizing:border-box;
+background:rgba(28,20,16,.93);
+border:1px solid #4e3a29;
+padding:20px;
+border-radius:12px;
+max-width:900px;
+margin:auto;
+}
+
+h1{
+font-family:'Cinzel',serif;
+letter-spacing:1px;
+color:#f0d9a1;
+margin-top:0;
+}
+
+.status{
+padding:12px;
+border-radius:8px;
+margin-top:15px;
+}
+
+.ok{
+background:#1f3a1f;
+color:#9ce49c;
+}
+
+.loading{
+background:#3a321f;
+color:#f0d9a1;
+}
+.inventory-grid{
+display:grid !important;
+grid-template-columns:repeat(5,minmax(0,1fr)) !important;
+gap:12px !important;
+align-items:start;
+width:100%;
+}
+
+.inventory-grid .card{
+width:100%;
+min-width:0;
+}
+
+.inventory-grid input{
+box-sizing:border-box;
+}
+
+@media (max-width:1600px){
+.inventory-grid{
+grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+}
+}
+
+@media (max-width:1200px){
+.inventory-grid{
+grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+}
+}
+
+</style>
+</head>
+<body>
+
+<style>
+.tabs{
+display:flex;
+flex-wrap:wrap;
+background:rgba(17,12,10,.95);
+border-bottom:1px solid #4b3928;
+position:sticky;
+top:0;
+z-index:1000;
+backdrop-filter:blur(6px);
+box-shadow:0 3px 10px rgba(0,0,0,.35);
+padding:0;
+margin-bottom:18px;
+}
+
+.tab-btn{
+padding:14px 18px;
+cursor:pointer;
+border-right:1px solid #3d2d20;
+transition:.2s;
+font-weight:600;
+letter-spacing:.5px;
+color:#c8b28a;
+background:none;
+border:none;
+}
+
+.tab-btn:hover{
+background:#2a1e16;
+color:#f3d9a4;
+}
+
+.tab-btn.active{
+background:#3b291d;
+color:#ffdf9f;
+box-shadow:inset 0 -2px 0 #c89b3c;
+}
+</style>
+
+<div class="tabs">
+<button class="tab-btn active" onclick="openTab('inventory-section',this)">Склад</button>
+<button class="tab-btn" onclick="openTab('craft-section',this)">Производство</button>
+<button class="tab-btn" onclick="openTab('needed-section',this)">Что нужно</button>
+</div>
+
+<div id="inventory-section" class="tab-section">
+<div class="card">
+<h1>RDR2 Production — Online</h1>
+
+<div id="status" class="status loading">
+Подключение к облаку...
+</div>
+
+<div style="margin-top:20px">
+<b>Supabase:</b><br>
+<span id="cloud-state">Ожидание подключения...</span>
+</div>
+
+<div style="margin-top:30px;border-top:1px solid #4a3828;padding-top:20px;">
+<h2>Online склад</h2>
+
+<div id="inventory-controls" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px"></div>
+
+<div id="inventory-view"></div>
+</div>
+
+</div>
+</div>
+
+<div id="craft-section" class="tab-section" style="display:none">
+<div class="card">
+<div style="margin-top:40px;border-top:1px solid #4a3828;padding-top:20px;">
+<h2>Online производство</h2>
+<div id="crafting-view" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px"></div>
+</div>
+
+</div>
+</div>
+
+<div id="needed-section" class="tab-section" style="display:none">
+<div class="card">
+<div style="margin-top:40px;border-top:1px solid #4a3828;padding-top:20px;">
+<h2>Что нужно</h2>
+
+<input id="needed-search" placeholder="Поиск товара..." style="width:100%;padding:10px;background:rgba(28,20,16,.93);border:1px solid #4e3a29;color:#f3e7c9;border-radius:8px;margin-bottom:18px;">
+
+<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:20px;align-items:start;">
+<div id="needed-products"></div>
+<div id="needed-ingredients"></div>
+<div id="needed-shopping"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+const SUPABASE_URL='https://cypspnueblwlwqmkwxvr.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5cHNwbnVlYmx3bHdxbWt3eHZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTkxOTMsImV4cCI6MjA5NDczNTE5M30.wycI0cLxAB0-Exl4TAY7TJ16ZPO_tNBFPLKB6a_voNU';
+
+const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+const statusEl=document.getElementById('status');
+const cloudStateEl=document.getElementById('cloud-state');
+const inventoryView=document.getElementById('inventory-view');
+const craftingView=document.getElementById('crafting-view');
+
+const recipes={
+'Картошка с мясом':{category:'food',output:2,ingredients:{'Дикая морковь':2,'Дикий чеснок':1,'Картофель':2,'Мясо дичи':1}},
+'Жареный кролик по-апалачски':{category:'food',output:2,ingredients:{'Вода':1,'Картофель':1,'Мука':1,'Мясо дичи':1,'Соль':1}},
+'Приправленная крупная дичь':{category:'food',output:2,ingredients:{'Вода':1,'Мясо крупной дичи':1,'Редис':1,'Соль':1}},
+'Приправленная свиная отбивная':{category:'food',output:2,ingredients:{'Вода':1,'Свинина':1,'Соль':1,'Шпинат':1}},
+'Жареные котлеты':{category:'food',output:2,ingredients:{'Вода':1,'Говядина':1,'Животный жир':1,'Соль':1}},
+'Цыпленок табака':{category:'food',output:2,ingredients:{'Вода':1,'Дикая морковь':1,'Душница':2,'Мясо птицы':1}},
+'Кофе':{category:'food',output:1,ingredients:{'Вода':1,'Молотый кофе':1}},
+'Чай из женьшеня':{category:'food',output:1,ingredients:{'Вода':1,'Американский женьшень':1,'Сахар':1}},
+'Чай пузэр':{category:'food',output:1,ingredients:{'Вода':1,'Американский женьшень':3,'Сахар':3}},
+'Черничный компот':{category:'food',output:1,ingredients:{'Вода':1,'Груша':1,'Сахар':2,'Черника':2}},
+'Штрудель':{category:'food',output:1,ingredients:{'Молоко':1,'Мука':1,'Сахар':1,'Яблоко':2,'Яйцо':1}},
+'Суп чероки':{category:'food',output:4,ingredients:{'Вода':1,'Дикая морковь':1,'Душница':1,'Картофель':2,'Кукуруза':1,'Оленина':1,'Ползучий тимьян':1,'Соль':1}},
+'Тушеное мясо по-апалачски':{category:'food',output:3,ingredients:{'Вода':1,'Дикая морковь':1,'Дикий чеснок':1,'Кукуруза':2,'Оленина':1,'Ползучий тимьян':1,'Соль':1}},
+'Абсент':{category:'alcohol',output:1,ingredients:{'Вода':1,'Агава':2,'Алоэ':2,'Дикая мята':1,'Спирт':1}},
+'Бабушкин самогон':{category:'alcohol',output:1,ingredients:{'Вода':1,'Сахар':4,'Спирт':1,'Тысячелистник':3}},
+'Байцзю':{category:'alcohol',output:1,ingredients:{'Вода':1,'Аляскинский женьшень':1,'Рис':3,'Спирт':1}},
+'Бурбон':{category:'alcohol',output:1,ingredients:{'Вода':1,'Аляскинский женьшень':2,'Американский женьшень':1,'Спирт':1}},
+'Водка Бутчерс-Крик':{category:'alcohol',output:1,ingredients:{'Вода':1,'Спирт':1,'Тысячелистник':3,'Хмель':4}},
+'Глинтвейн':{category:'alcohol',output:1,ingredients:{'Виноград':1,'Дикая мята':2,'Спирт':1,'Черника':1}},
+'Грелка для кишечника':{category:'alcohol',output:1,ingredients:{'Вода':1,'Молочай':1,'Спирт':1,'Хмель':4}},
+'Дикий первач':{category:'alcohol',output:1,ingredients:{'Вода':1,'Картофель':3,'Сахар':3,'Спирт':1}},
+'Домашний душок':{category:'alcohol',output:1,ingredients:{'Вода':1,'Змеиная ягода':5,'Сахар':3,'Спирт':1}},
+'Змеиное вино':{category:'alcohol',output:1,ingredients:{'Вода':1,'Виноград':1,'Змеиный яд':1,'Спирт':1}},
+'Красное вино':{category:'alcohol',output:1,ingredients:{'Виноград':2,'Спирт':1}},
+'Крестьянский жар':{category:'alcohol',output:1,ingredients:{'Вода':1,'Груша':6,'Сахар':3,'Спирт':1}},
+'Крысиная настойка':{category:'alcohol',output:1,ingredients:{'Стеклянная бутылка':1,'Бытовой хлам':2,'Кровавый цветок':1,'Крыса':1,'Спирт':1}},
+'Кукурузный самогон':{category:'alcohol',output:1,ingredients:{'Вода':1,'Кукуруза':5,'Сахар':4,'Спирт':1}},
+'Лунный огонек':{category:'alcohol',output:1,ingredients:{'Вода':1,'Американский женьшень':5,'Сахар':3,'Спирт':1}},
+'Ночной эликсир':{category:'alcohol',output:1,ingredients:{'Вода':1,'Дикая мята':4,'Сахар':4,'Спирт':1}},
+'Огненная бражка':{category:'alcohol',output:1,ingredients:{'Вода':1,'Агава':4,'Сахар':4,'Спирт':1}},
+'Персиковый самогон':{category:'alcohol',output:1,ingredients:{'Вода':1,'Персик':5,'Сахар':4,'Спирт':1}},
+'Ром':{category:'alcohol',output:1,ingredients:{'Вода':1,'Сахар':2,'Спирт':1}},
+'Сельский блеск':{category:'alcohol',output:1,ingredients:{'Вода':1,'Пшеница':4,'Сахар':4,'Спирт':1}},
+'Спирт':{category:'alcohol',output:1,ingredients:{'Вода':1,'Кукуруза':2,'Сахар':2,'Хмель':3}},
+'Тайная бражка':{category:'alcohol',output:1,ingredients:{'Вода':1,'Сахар':3,'Спирт':1,'Чок Дейзи':3}},
+'Текила Дон Хулио':{category:'alcohol',output:1,ingredients:{'Виноград':1,'Дикая мята':2,'Спирт':1,'Черника':1}},
+'Фермерский тайник':{category:'alcohol',output:1,ingredients:{'Вода':1,'Алоэ':5,'Сахар':4,'Спирт':1}},
+'Черничный самогон':{category:'alcohol',output:1,ingredients:{'Вода':1,'Сахар':4,'Спирт':1,'Черника':5}},
+'Эйфория каннабис':{category:'alcohol',output:1,ingredients:{'Яблоко':1,'Дикая мята':1,'Листья каннабиса':2,'Ползучий тимьян':1,'Спирт':1}},
+'Яблочный самогон':{category:'alcohol',output:1,ingredients:{'Вода':1,'Сахар':4,'Спирт':1,'Яблоко':5}}
+};
+
+const allIngredients=[...new Set(Object.values(recipes).flatMap(r=>Object.keys(r.ingredients)))].sort();
+
+let cloudState={
+inventory:{},
+prices:{},
+needed:{},
+production_history:{}
+};
+
+allIngredients.forEach(i=>{
+if(cloudState.inventory[i]==null) cloudState.inventory[i]=0;
+if(cloudState.prices[i]==null) cloudState.prices[i]=0;
+});
+
+async function loadCloudState(){
+const {data,error}=await supabaseClient
+.from('app_state')
+.select('*')
+.eq('id',1)
+.single();
+
+if(error){
+console.error(error);
+statusEl.innerHTML='Ошибка подключения';
+return;
+}
+
+statusEl.className='status ok';
+statusEl.innerHTML='Подключено к realtime cloud storage';
+
+cloudStateEl.innerHTML=`ID: ${data.id}<br>Обновлено: ${data.updated_at}`;
+
+if(data.data){
+cloudState=data.data;
+}
+
+if(!cloudState.inventory) cloudState.inventory={};
+if(!cloudState.prices) cloudState.prices={};
+if(!cloudState.needed) cloudState.needed={};
+if(!cloudState.production_history) cloudState.production_history={};
+
+allIngredients.forEach(i=>{
+if(cloudState.inventory[i]==null) cloudState.inventory[i]=0;
+if(cloudState.prices[i]==null) cloudState.prices[i]=0;
+});
+
+renderAll();
+}
+
+function renderAll(){
+renderInventory();
+renderCrafting();
+renderNeeded();
+}
+
+function renderInventory(){
+inventoryView.innerHTML='';
+
+inventoryView.className='inventory-grid';
+
+
+
+
+allIngredients.forEach(i=>{
+if(cloudState.inventory[i]==null){
+cloudState.inventory[i]=0;
+}
+});
+
+Object.entries(cloudState.inventory)
+.sort((a,b)=>a[0].localeCompare(b[0],'ru'))
+.forEach(([name,val])=>{
+const div=document.createElement('div');
+
+div.className='card';
+div.style.padding='12px';
+div.style.minHeight='150px';
+div.style.display='flex';
+div.style.flexDirection='column';
+div.style.justifyContent='space-between';
+
+if(cloudState.prices[name]==null){
+cloudState.prices[name]=0;
+}
+
+const price=cloudState.prices[name]||0;
+
+div.innerHTML=`
+<div style="font-weight:bold;color:#f0d9a1;font-size:15px;margin-bottom:10px;line-height:1.2;min-height:38px;">
+${name}
+</div>
+
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+<span style="font-size:12px;color:#aaa;width:55px">Кол-во</span>
+<input type="number" value="${val}" style="width:100%;background:#1b1410;border:1px solid #4a3828;color:#f3e7c9;padding:6px;border-radius:6px" onchange="setInventoryValue('${name}',this.value)">
+</div>
+
+<div style="display:flex;gap:6px;margin-bottom:10px;">
+<button onclick="changeItem('${name}',1)" style="flex:1">+</button>
+<button onclick="changeItem('${name}',-1)" style="flex:1">-</button>
+</div>
+
+<div style="display:flex;align-items:center;gap:8px;">
+<span style="font-size:12px;color:#b89f74;width:55px">Цена</span>
+<input type="number" value="${price}" step="0.01" style="width:100%;background:#1b1410;border:1px solid #4a3828;color:#f3e7c9;padding:6px;border-radius:6px" onchange="changePrice('${name}',this.value)">
+</div>
+`;
+
+inventoryView.appendChild(div);
+});
+}
+
+function renderCrafting(){
+craftingView.innerHTML='';
+
+Object.entries(recipes).forEach(([name,recipe])=>{
+let possible=Infinity;
+
+Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+const have=cloudState.inventory[ing]||0;
+possible=Math.min(possible,Math.floor(have/amount));
+});
+
+if(!isFinite(possible)) possible=0;
+
+const card=document.createElement('div');
+card.className='card';
+
+let craftCost=0;
+
+Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+craftCost+=(cloudState.prices[ing]||0)*amount;
+});
+
+const ingHtml=Object.entries(recipe.ingredients).map(([ing,amount])=>{
+const have=cloudState.inventory[ing]||0;
+const ok=have>=amount;
+return `<div style="color:${ok ? '#7fd67f' : '#ff7b7b'}">(${have}) ${ing}: ${amount}</div>`;
+}).join('');
+
+card.innerHTML=`
+<h3>${name}</h3>
+<div style="font-size:12px;color:#c8b28a">Выход: x${recipe.output}</div>
+<div style="margin-top:10px">${ingHtml}</div>
+<div style="margin-top:10px">Крафтов: ${possible}</div>
+<div style="font-size:12px;color:#c8b28a;margin-top:4px">Себестоимость: $${craftCost.toFixed(2)}</div>
+<div style="display:flex;gap:8px;margin-top:10px">
+<button onclick="craftItem('${name}')">Произвести</button>
+<button onclick="undoCraft('${name}')">↶</button>
+</div>
+`;
+
+craftingView.appendChild(card);
+});
+}
+
+async function saveCloudState(){
+await supabaseClient
+.from('app_state')
+.update({
+data:cloudState,
+updated_at:new Date().toISOString()
+})
+.eq('id',1);
+}
+
+async function changeItem(name,delta){
+cloudState.inventory[name]=Math.max(0,(cloudState.inventory[name]||0)+delta);
+renderAll();
+await saveCloudState();
+}
+
+async function setInventoryValue(name,value){
+cloudState.inventory[name]=parseInt(value)||0;
+renderAll();
+await saveCloudState();
+}
+
+async function changePrice(name,value){
+cloudState.prices[name]=parseFloat(value)||0;
+renderAll();
+await saveCloudState();
+}
+
+async function craftItem(name){
+const recipe=recipes[name];
+if(!recipe) return;
+
+let can=true;
+
+Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+if((cloudState.inventory[ing]||0)<amount){
+can=false;
+}
+});
+
+if(!can) return;
+
+Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+cloudState.inventory[ing]-=amount;
+});
+
+cloudState.inventory[name]=(cloudState.inventory[name]||0)+recipe.output;
+cloudState.production_history[name]=(cloudState.production_history[name]||0)+1;
+
+renderAll();
+await saveCloudState();
+}
+
+async function undoCraft(name){
+const recipe=recipes[name];
+if(!recipe) return;
+if(!cloudState.production_history[name]) return;
+
+Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+cloudState.inventory[ing]+=amount;
+});
+
+cloudState.inventory[name]=Math.max(0,(cloudState.inventory[name]||0)-recipe.output);
+cloudState.production_history[name]-=1;
+
+renderAll();
+await saveCloudState();
+}
+
+function renderNeeded(){
+const products=document.getElementById('needed-products');
+const ingredients=document.getElementById('needed-ingredients');
+const shopping=document.getElementById('needed-shopping');
+const search=(document.getElementById('needed-search')?.value||'').toLowerCase();
+
+products.innerHTML='';
+ingredients.innerHTML='';
+shopping.innerHTML='';
+
+const totals={};
+
+Object.entries(recipes)
+.filter(([name])=>name.toLowerCase().includes(search))
+.forEach(([name,recipe])=>{
+if(cloudState.needed[name]==null){
+cloudState.needed[name]=0;
+}
+
+const value=cloudState.needed[name]||0;
+
+const card=document.createElement('div');
+card.className='card';
+card.style.marginBottom='10px';
+
+card.innerHTML=`
+<div style='font-weight:bold'>${name}</div>
+<div style='font-size:12px;color:#b89f74;margin-bottom:10px'>Выход x${recipe.output}</div>
+<div style='display:flex;gap:6px;align-items:center'>
+<button class='minus-btn'>-</button>
+<input type='number' value='${value}' style='width:70px'>
+<button class='plus-btn'>+</button>
+</div>
+`;
+
+const input=card.querySelector('input');
+const plus=card.querySelector('.plus-btn');
+const minus=card.querySelector('.minus-btn');
+
+input.oninput=async()=>{
+cloudState.needed[name]=parseInt(input.value)||0;
+renderNeeded();
+await saveCloudState();
+};
+
+plus.onclick=async()=>{
+cloudState.needed[name]=(cloudState.needed[name]||0)+1;
+renderNeeded();
+await saveCloudState();
+};
+
+minus.onclick=async()=>{
+cloudState.needed[name]=Math.max(0,(cloudState.needed[name]||0)-1);
+renderNeeded();
+await saveCloudState();
+};
+
+products.appendChild(card);
+
+if(value>0){
+Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+if(!totals[ing]) totals[ing]=0;
+totals[ing]+=amount*value;
+});
+}
+});
+
+Object.entries(totals).forEach(([ing,total])=>{
+const have=cloudState.inventory[ing]||0;
+const miss=Math.max(0,total-have);
+const price=cloudState.prices[ing]||0;
+const totalCost=(miss*price).toFixed(2);
+
+const card=document.createElement('div');
+card.className='card';
+card.style.marginBottom='10px';
+
+card.innerHTML=`
+<div><b>${ing}</b></div>
+<div>Нужно: ${total}</div>
+<div>На складе: ${have}</div>
+<div style='color:${miss>0 ? '#ff7b7b' : '#7fd67f'}'>${miss>0 ? 'Не хватает: '+miss : 'Хватает'}</div>
+<div style='font-size:12px;color:#c8b28a;margin-top:4px'>Закупка: $${totalCost}</div>
+`;
+
+ingredients.appendChild(card);
+
+if(miss>0){
+const s=document.createElement('div');
+s.className='card';
+s.style.marginBottom='10px';
+s.innerHTML=`${ing}: ${miss}`;
+shopping.appendChild(s);
+}
+});
+}
+
+document.addEventListener('input',(e)=>{
+if(e.target.id==='needed-search'){
+renderNeeded();
+}
+});
+
+function startRealtime(){
+supabaseClient
+.channel('app_state_changes')
+.on('postgres_changes',{
+event:'*',
+schema:'public',
+table:'app_state'
+},payload=>{
+if(payload.new && payload.new.data){
+cloudState=payload.new.data;
+renderAll();
+}
+})
+.subscribe();
+}
+
+loadCloudState();
+startRealtime();
+</script>
+
+</div>
+</div>
+
+<script>
+function openTab(id,el){
+document.querySelectorAll('.tab-section').forEach(s=>s.style.display='none');
+document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+document.getElementById(id).style.display='block';
+el.classList.add('active');
+}
+</script>
+
+<style>
+.tabs{
+display:flex;
+gap:8px;
+padding:12px 28px;
+position:sticky;
+top:0;
+z-index:1000;
+background:rgba(17,12,10,.96);
+border-bottom:1px solid #4b3928;
+backdrop-filter:blur(6px);
+}
+
+.tab-btn{
+padding:12px 18px;
+background:#2a1e16;
+color:#c8b28a;
+border:1px solid #4b3928;
+cursor:pointer;
+font-weight:700;
+}
+
+.tab-btn.active{
+background:#3b291d;
+color:#ffdf9f;
+box-shadow:inset 0 -2px 0 #c89b3c;
+}
+</style>
+</body>
+</html>
