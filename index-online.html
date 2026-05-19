@@ -55,6 +55,8 @@ background:#3a321f;
 color:#f0d9a1;
 }
 .inventory-grid{
+width:100%;
+max-width:none;
 display:grid !important;
 grid-template-columns:repeat(5,minmax(0,1fr)) !important;
 gap:12px !important;
@@ -77,6 +79,8 @@ justify-content:space-between;
 }
 
 .production-grid{
+width:100%;
+max-width:none;
 display:grid !important;
 grid-template-columns:repeat(5,minmax(0,1fr)) !important;
 gap:12px !important;
@@ -95,6 +99,8 @@ flex-direction:column;
 }
 
 .needed-layout{
+width:100%;
+max-width:none;
 display:grid;
 grid-template-columns:1.4fr 1fr 1fr;
 gap:18px;
@@ -125,13 +131,29 @@ width:100%;
 max-width:none;
 padding:0;
 margin:0;
+box-sizing:border-box;
 }
 
 .main-wrapper{
+width:100vw;
+max-width:100vw;
+margin:0;
+padding:0 14px 24px;
+box-sizing:border-box;
+overflow-x:hidden;
+}
+
+html,body{
+width:100%;
+max-width:100%;
+margin:0;
+padding:0;
+overflow-x:hidden;
+}
+
+body > *{
 width:100%;
 max-width:none;
-margin:0 auto;
-padding:0 10px 20px;
 box-sizing:border-box;
 }
 
