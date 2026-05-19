@@ -575,7 +575,6 @@ const have=cloudState.inventory[ing]||0;
 const ok=have>=amount;
 possible=Math.min(possible,Math.floor(have/amount));
 cost+=(cloudState.prices[ing]||0)*amount;
-
 return `<div style="color:${ok?'#86d986':'#ff7f7f'};font-size:13px;margin-bottom:4px;">(${have}) ${ing}: ${amount}</div>`;
 }).join('');
 
