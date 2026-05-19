@@ -260,14 +260,6 @@ await saveCloudState();
 
 wrap.appendChild(card);
 });
-}).forEach(([name,value])=>{
-const div=document.createElement('div');
-
-div.style.marginBottom='8px';
-div.innerHTML=`${name}: <b>${value}</b>`;
-
-inventoryView.appendChild(div);
-});
 }
 
 async function saveCloudState(){
