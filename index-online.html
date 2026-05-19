@@ -719,120 +719,18 @@ shopping.appendChild(shop);
 });
 }
 
-document.addEventListener(){
-const products=document.getElementById('needed-products');
-const ingredients=document.getElementById('needed-ingredients');
-const shopping=document.getElementById('needed-shopping');
-const search=(document.getElementById('needed-search')?.value||'').toLowerCase();
-
-products.innerHTML='';
-ingredients.innerHTML='';
-shopping.innerHTML='';
-
-const totals={};
-
-Object.entries(recipes)
-.filter(([name])=>name.toLowerCase().includes(search))
-.forEach(([name,recipe])=>{
-if(cloudState.needed[name]==null){
-cloudState.needed[name]=0;
-}
-
-const value=cloudState.needed[name]||0;
-
-const card=document.createElement('div');
-card.className='card';
-card.style.marginBottom='10px';
-card.style.padding='12px';
-
-const orderedAmount=value*recipe.output;
-
-card.innerHTML=`
-<div style='font-weight:bold;color:#f0d9a1'>${name}</div>
-<div style='font-size:12px;color:#b89f74;margin-bottom:6px'>Выход x${recipe.output}</div>
-<div style='font-size:12px;color:#7fd67f;margin-bottom:10px'>Заказано: ${orderedAmount}</div>
-<div style='display:flex;gap:6px;align-items:center'>
-<button class='minus-btn'>-</button>
-<input type='number' value='${value}' style='width:70px'>
-<button class='plus-btn'>+</button>
-</div>
-`;
-
-const input=card.querySelector('input');
-const plus=card.querySelector('.plus-btn');
-const minus=card.querySelector('.minus-btn');
-
-input.oninput=async()=>{
-cloudState.needed[name]=parseInt(input.value)||0;
-renderNeeded();
-await saveCloudState();
-};
-
-plus.onclick=async()=>{
-cloudState.needed[name]=(cloudState.needed[name]||0)+1;
-renderNeeded();
-await saveCloudState();
-};
-
-minus.onclick=async()=>{
-cloudState.needed[name]=Math.max(0,(cloudState.needed[name]||0)-1);
-renderNeeded();
-await saveCloudState();
-};
-
-products.appendChild(card);
-
-if(value>0){
-Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
-if(!totals[ing]) totals[ing]=0;
-totals[ing]+=amount*value;
-});
-}
-});
-
-Object.entries(totals).forEach(([ing,total])=>{
-const have=cloudState.inventory[ing]||0;
-const miss=Math.max(0,total-have);
-const price=cloudState.prices[ing]||0;
-const totalCost=(miss*price).toFixed(2);
-
-const card=document.createElement('div');
-card.className='card';
-card.style.marginBottom='10px';
-
-card.innerHTML=`
-<div><b>${ing}</b></div>
-<div>Нужно: ${total}</div>
-<div>На складе: ${have}</div>
-<div style='color:${miss>0 ? '#ff7b7b' : '#7fd67f'}'>${miss>0 ? 'Не хватает: '+miss : 'Хватает'}</div>
-<div style='font-size:12px;color:#c8b28a;margin-top:4px'>Закупка: $${totalCost}</div>
-`;
-
-ingredients.appendChild(card);
-
-if(miss>0){
-const s=document.createElement('div');
-s.className='card';
-s.style.marginBottom='10px';
-s.innerHTML=`${ing}: ${miss}`;
-shopping.appendChild(s);
-}
-});
-}
-
 document.addEventListener('input',(e)=>{
-if(e.target.id==='needed-search'){
-renderNeeded();
-}
-
-if(e.target.id==='inventory-search'){
-renderInventory();
-}
-
-if(e.target.id==='craft-search'){
-renderCrafting();
-}
+if(e.target.id==='needed-search') renderNeeded();
+if(e.target.id==='inventory-search') renderInventory();
+if(e.target.id==='craft-search') renderCrafting();
 });
+
+function openTab(id,el){
+document.querySelectorAll('.tab-section').forEach(s=>s.style.display='none');
+document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+document.getElementById(id).style.display='block';
+el.classList.add('active');
+}
 
 function startRealtime(){
 supabaseClient
@@ -844,6 +742,16 @@ table:'app_state'
 },payload=>{
 if(payload.new && payload.new.data){
 cloudState=payload.new.data;
+
+if(!cloudState.inventory) cloudState.inventory={};
+if(!cloudState.prices) cloudState.prices={};
+if(!cloudState.needed) cloudState.needed={};
+
+allIngredients.forEach(i=>{
+if(cloudState.inventory[i]==null) cloudState.inventory[i]=0;
+if(cloudState.prices[i]==null) cloudState.prices[i]=0;
+});
+
 renderAll();
 }
 })
