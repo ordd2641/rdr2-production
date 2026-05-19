@@ -147,8 +147,6 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 <input id="inventory-search" type="text" placeholder="Поиск ингредиента..." style="width:100%;padding:10px 12px;background:#1b1410;border:1px solid #4a3828;color:#f3e7c9;border-radius:8px;font-size:14px;">
 </div>
 
-<input id="inventory-search" placeholder="Поиск ингредиента..." style="width:100%;padding:10px;background:#221913;border:1px solid #4a3828;color:#f3e7c9;border-radius:8px;margin-bottom:18px;">
-
 <div id="inventory-controls" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px"></div>
 
 <div id="inventory-view"></div>
@@ -164,8 +162,6 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 <div style="margin-bottom:18px;">
 <input id="craft-search" type="text" placeholder="Поиск рецепта..." style="width:100%;padding:10px 12px;background:#1b1410;border:1px solid #4a3828;color:#f3e7c9;border-radius:8px;font-size:14px;">
 </div>
-
-<input id="craft-search" placeholder="Поиск рецепта..." style="width:100%;padding:10px;background:#221913;border:1px solid #4a3828;color:#f3e7c9;border-radius:8px;margin-bottom:18px;">
 <div id="crafting-view" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px"></div>
 </div>
 
@@ -376,13 +372,11 @@ alcohol:Object.entries(recipes)
 Object.entries(groupedRecipes).forEach(([groupName,groupItems])=>{
 const section=document.createElement('div');
 section.style.gridColumn='1/-1';
-section.style.margin='10px 0 0 0';
-section.innerHTML=`<h2 style="color:#f0d9a1;border-bottom:1px solid #4a3828;padding-bottom:6px;">${groupName==='food'?'ЕДА':'АЛКОГОЛЬ'}</h2>`;
+section.innerHTML=`<h2 style="color:#f0d9a1;border-bottom:1px solid #4a3828;padding-bottom:6px;margin:10px 0;">${groupName==='food'?'ЕДА':'АЛКОГОЛЬ'}</h2>`;
 craftingView.appendChild(section);
 
 groupItems
 .filter(([name])=>name.toLowerCase().includes(craftSearch))
-.forEach(([name])=>name.toLowerCase().includes(craftSearch))
 .forEach(([name,recipe])=>{
 let possible=Infinity;
 
@@ -393,14 +387,13 @@ possible=Math.min(possible,Math.floor(have/amount));
 
 if(!isFinite(possible)) possible=0;
 
-const card=document.createElement('div');
-card.className='card';
-
 let craftCost=0;
-
 Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
 craftCost+=(cloudState.prices[ing]||0)*amount;
 });
+
+const card=document.createElement('div');
+card.className='card';
 
 const ingHtml=Object.entries(recipe.ingredients).map(([ing,amount])=>{
 const have=cloudState.inventory[ing]||0;
@@ -423,75 +416,6 @@ card.innerHTML=`
 craftingView.appendChild(card);
 });
 });
-}
-
-async function saveCloudState(){
-await supabaseClient
-.from('app_state')
-.update({
-data:cloudState,
-updated_at:new Date().toISOString()
-})
-.eq('id',1);
-}
-
-async function changeItem(name,delta){
-cloudState.inventory[name]=Math.max(0,(cloudState.inventory[name]||0)+delta);
-renderAll();
-await saveCloudState();
-}
-
-async function setInventoryValue(name,value){
-cloudState.inventory[name]=parseInt(value)||0;
-renderAll();
-await saveCloudState();
-}
-
-async function changePrice(name,value){
-cloudState.prices[name]=parseFloat(value)||0;
-renderAll();
-await saveCloudState();
-}
-
-async function craftItem(name){
-const recipe=recipes[name];
-if(!recipe) return;
-
-let can=true;
-
-Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
-if((cloudState.inventory[ing]||0)<amount){
-can=false;
-}
-});
-
-if(!can) return;
-
-Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
-cloudState.inventory[ing]-=amount;
-});
-
-cloudState.inventory[name]=(cloudState.inventory[name]||0)+recipe.output;
-cloudState.production_history[name]=(cloudState.production_history[name]||0)+1;
-
-renderAll();
-await saveCloudState();
-}
-
-async function undoCraft(name){
-const recipe=recipes[name];
-if(!recipe) return;
-if(!cloudState.production_history[name]) return;
-
-Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
-cloudState.inventory[ing]+=amount;
-});
-
-cloudState.inventory[name]=Math.max(0,(cloudState.inventory[name]||0)-recipe.output);
-cloudState.production_history[name]-=1;
-
-renderAll();
-await saveCloudState();
 }
 
 function renderNeeded(){
