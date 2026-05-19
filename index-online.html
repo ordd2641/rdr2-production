@@ -210,11 +210,24 @@ Object.entries(cloudState.inventory).forEach(([name,val])=>{
 const div=document.createElement('div');
 div.style.marginBottom='10px';
 
+if(cloudState.prices[name]==null){
+cloudState.prices[name]=0;
+}
+
+const price=cloudState.prices[name]||0;
+
 div.innerHTML=`
-<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:6px;">
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
 <b style="min-width:140px">${name}: ${val}</b>
 <button onclick="changeItem('${name}',1)">+</button>
 <button onclick="changeItem('${name}',-1)">-</button>
+</div>
+
+<div style="display:flex;align-items:center;gap:8px;">
+<span style="font-size:12px;color:#b89f74;width:50px">Цена</span>
+<input type="number" value="${price}" step="0.01" style="width:100px" onchange="changePrice('${name}',this.value)">
+</div>
 </div>
 `;
 
@@ -238,6 +251,12 @@ if(!isFinite(possible)) possible=0;
 const card=document.createElement('div');
 card.className='card';
 
+let craftCost=0;
+
+Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+craftCost+=(cloudState.prices[ing]||0)*amount;
+});
+
 const ingHtml=Object.entries(recipe.ingredients).map(([ing,amount])=>{
 const have=cloudState.inventory[ing]||0;
 const ok=have>=amount;
@@ -249,6 +268,7 @@ card.innerHTML=`
 <div style="font-size:12px;color:#c8b28a">Выход: x${recipe.output}</div>
 <div style="margin-top:10px">${ingHtml}</div>
 <div style="margin-top:10px">Крафтов: ${possible}</div>
+<div style="font-size:12px;color:#c8b28a;margin-top:4px">Себестоимость: $${craftCost.toFixed(2)}</div>
 <div style="display:flex;gap:8px;margin-top:10px">
 <button onclick="craftItem('${name}')">Произвести</button>
 <button onclick="undoCraft('${name}')">↶</button>
@@ -271,6 +291,12 @@ updated_at:new Date().toISOString()
 
 async function changeItem(name,delta){
 cloudState.inventory[name]=Math.max(0,(cloudState.inventory[name]||0)+delta);
+renderAll();
+await saveCloudState();
+}
+
+async function changePrice(name,value){
+cloudState.prices[name]=parseFloat(value)||0;
 renderAll();
 await saveCloudState();
 }
@@ -386,6 +412,8 @@ totals[ing]+=amount*value;
 Object.entries(totals).forEach(([ing,total])=>{
 const have=cloudState.inventory[ing]||0;
 const miss=Math.max(0,total-have);
+const price=cloudState.prices[ing]||0;
+const totalCost=(miss*price).toFixed(2);
 
 const card=document.createElement('div');
 card.className='card';
@@ -396,6 +424,7 @@ card.innerHTML=`
 <div>Нужно: ${total}</div>
 <div>На складе: ${have}</div>
 <div style='color:${miss>0 ? '#ff7b7b' : '#7fd67f'}'>${miss>0 ? 'Не хватает: '+miss : 'Хватает'}</div>
+<div style='font-size:12px;color:#c8b28a;margin-top:4px'>Закупка: $${totalCost}</div>
 `;
 
 ingredients.appendChild(card);
