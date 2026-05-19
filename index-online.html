@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RDR2 Production Online</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body{
+margin:0;
+background:#15110d;
+color:#f3e7c9;
+font-family:Arial,sans-serif;
+padding:40px;
+}
+
+.card{
+background:#221913;
+border:1px solid #4a3828;
+padding:20px;
+border-radius:12px;
+max-width:900px;
+margin:auto;
+}
+
+h1{
+margin-top:0;
+}
+
+.status{
+padding:12px;
+border-radius:8px;
+margin-top:15px;
+}
+
+.ok{
+background:#1f3a1f;
+color:#9ce49c;
+}
+
+.loading{
+background:#3a321f;
+color:#f0d9a1;
+}
+</style>
+</head>
+<body>
+
+<div class="card">
+<h1>RDR2 Production — Online</h1>
+
+<div id="status" class="status loading">
+Подключение к облаку...
+</div>
+
+<div style="margin-top:20px">
+<b>Supabase:</b><br>
+<span id="cloud-state">Ожидание подключения...</span>
+</div>
+
+<div style="margin-top:30px;border-top:1px solid #4a3828;padding-top:20px;">
+<h2>Online склад</h2>
+
+<div id="inventory-controls" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px"></div>
+
+<div id="inventory-view"></div>
+</div>
+
+<div style="margin-top:40px;border-top:1px solid #4a3828;padding-top:20px;">
+<h2>Online производство</h2>
+<div style='margin-bottom:18px'>
+<input id='craft-search' placeholder='Поиск рецепта...' style='width:100%;padding:10px;background:#221913;border:1px solid #4a3828;color:#f3e7c9;border-radius:8px'>
+</div>
+<div id="crafting-view" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div>
+</div>
+</div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://cypspnueblwlwqmkwxvr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5cHNwbnVlYmx3bHdxbWt3eHZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTkxOTMsImV4cCI6MjA5NDczNTE5M30.wycI0cLxAB0-Exl4TAY7TJ16ZPO_tNBFPLKB6a_voNU';
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const statusEl = document.getElementById('status');
+const cloudStateEl = document.getElementById('cloud-state');
+const inventoryView = document.getElementById('inventory-view');
+
+const recipes={
+'Спирт':{
+category:'alcohol',
+output:1,
+ingredients:{
+'Вода':2,
+'Сахар':1
+}
+},
+'Ром':{
+category:'alcohol',
+output:1,
+ingredients:{
+'Спирт':1,
+'Сахар':2
+}
+},
+'Картошка с мясом':{
+category:'food',
+output:2,
+ingredients:{
+'Картофель':2,
+'Мясо дичи':1,
+'Дикая морковь':2
+}
+},
+'Цыпленок табака':{
+category:'food',
+output:2,
+ingredients:{
+'Мясо птицы':1,
+'Душница':2,
+'Вода':1
+}
+},
+'Абсент':{
+category:'alcohol',
+output:1,
+ingredients:{
+'Спирт':1,
+'Агава':2,
+'Алоэ':2
+}
+}
+};
+
+let cloudState = {
+inventory:{
+'Вода':0,
+'Сахар':0,
+'Спирт':0,
+'Картофель':0,
+'Мясо дичи':0,
+'Дикая морковь':0,
+'Мясо птицы':0,
+'Душница':0,
+'Агава':0,
+'Алоэ':0
+},
+prices:{},
+needed:{},
+production_history:{}
+};
+
+async function loadCloudState(){
+const { data, error } = await supabaseClient
+.from('app_state')
+.select('*')
+.limit(1)
+.single();
+
+if(error){
+console.error(error);
+statusEl.className='status';
+statusEl.innerHTML='Ошибка подключения к Supabase';
+return;
+}
+
+statusEl.className='status ok';
+statusEl.innerHTML='Подключено к realtime cloud storage';
+
+cloudStateEl.innerHTML=`
+ID записи: ${data.id}<br>
+Последнее обновление: ${data.updated_at}
+`;
+
+console.log('CLOUD STATE',data);
+
+if(data.data && typeof data.data === 'object'){
+cloudState = data.data;
+}
+
+renderInventory();
+}
+
+function renderInventory(){
+inventoryView.innerHTML='';
+
+Object.entries(cloudState.inventory || {}).forEach(([name,value])=>{
+const div=document.createElement('div');
+
+div.style.marginBottom='8px';
+div.innerHTML=`${name}: <b>${value}</b>`;
+
+inventoryView.appendChild(div);
+});
+
+renderInventoryControls();
+renderCrafting();
+}
+
+function renderInventoryControls(){
+const wrap=document.getElementById('inventory-controls');
+wrap.innerHTML='';
+
+Object.keys(cloudState.inventory).forEach(name=>{
+const card=document.createElement('div');
+card.className='card';
+card.style.padding='12px';
+
+card.innerHTML=`
+<div style='margin-bottom:10px'><b>${name}</b></div>
+<div style='display:flex;gap:6px'>
+<button class='minus-btn'>-</button>
+<button class='plus-btn'>+</button>
+</div>
+`;
+
+card.querySelector('.plus-btn').onclick=async()=>{
+cloudState.inventory[name]=(cloudState.inventory[name]||0)+1;
+renderInventory();
+await saveCloudState();
+};
+
+card.querySelector('.minus-btn').onclick=async()=>{
+cloudState.inventory[name]=Math.max(0,(cloudState.inventory[name]||0)-1);
+renderInventory();
+await saveCloudState();
+};
+
+wrap.appendChild(card);
+});
+});
+}
+
+document.addEventListener('input',(e)=>{
+if(e.target.id==='craft-search'){
+renderCrafting();
+}
+});
+
+function renderCrafting(){
+const search=(document.getElementById('craft-search')?.value||'').toLowerCase();
+const wrap=document.getElementById('crafting-view');
+wrap.innerHTML='';
+
+const grouped={
+food:Object.entries(recipes).filter(([_,r])=>r.category==='food'),
+alcohol:Object.entries(recipes).filter(([_,r])=>r.category==='alcohol')
+};
+
+Object.entries(grouped).forEach(([groupName,groupRecipes])=>{
+const title=document.createElement('div');
+title.style.gridColumn='1/-1';
+title.style.fontSize='24px';
+title.style.color='#f0d9a1';
+title.style.margin='10px 0';
+title.innerHTML=groupName==='food'?'ЕДА':'АЛКОГОЛЬ';
+wrap.appendChild(title);
+
+groupRecipes
+.filter(([name])=>name.toLowerCase().includes(search))
+.forEach(([name,recipe])=>{
+let possible=Infinity;
+
+Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+const have=cloudState.inventory[ing]||0;
+possible=Math.min(possible,Math.floor(have/amount));
+});
+
+if(!isFinite(possible))possible=0;
+
+const card=document.createElement('div');
+card.className='card';
+
+const ingredientsHtml=Object.entries(recipe.ingredients).map(([ing,amount])=>{
+const have=cloudState.inventory[ing]||0;
+const ok=have>=amount;
+return `<div style='color:${ok ? '#8de28d' : '#ff7b7b'}'>(${have}) ${ing}: ${amount}</div>`;
+}).join('');
+
+card.innerHTML=`
+<h3>${name}</h3>
+<div style='font-size:12px;color:#c8b28a;margin-bottom:10px'>Выход: x${recipe.output}</div>
+${ingredientsHtml}
+<div style='margin-top:12px'>Крафтов доступно: ${possible}</div>
+<div style='font-size:12px;color:#999'>Итоговый выход: ${possible * recipe.output}</div>
+<div style='display:flex;gap:6px;margin-top:12px'>
+<button class='craft-btn'>Произвести</button>
+<button class='undo-btn'>↶</button>
+</div>
+`;
+
+card.querySelector('.craft-btn').onclick=async()=>{
+if(possible<=0)return;
+
+Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+cloudState.inventory[ing]-=amount;
+});
+
+cloudState.inventory[name]=(cloudState.inventory[name]||0)+recipe.output;
+
+cloudState.production_history[name]=(cloudState.production_history[name]||0)+1;
+
+renderInventory();
+await saveCloudState();
+};
+
+card.querySelector('.undo-btn').onclick=async()=>{
+if(!cloudState.production_history[name])return;
+
+Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
+cloudState.inventory[ing]+=amount;
+});
+
+cloudState.inventory[name]=Math.max(0,(cloudState.inventory[name]||0)-recipe.output);
+
+cloudState.production_history[name]-=1;
+
+renderInventory();
+await saveCloudState();
+};
+
+wrap.appendChild(card);
+});
+}
+
+async function saveCloudState(){
+const { error } = await supabaseClient
+.from('app_state')
+.update({
+data: cloudState,
+updated_at: new Date().toISOString()
+})
+.eq('id',1);
+
+if(error){
+console.error(error);
+return;
+}
+}
+
+async function addWater(){
+cloudState.inventory['Вода']=(cloudState.inventory['Вода']||0)+1;
+renderInventory();
+await saveCloudState();
+}
+
+async function removeWater(){
+cloudState.inventory['Вода']=Math.max(0,(cloudState.inventory['Вода']||0)-1);
+renderInventory();
+await saveCloudState();
+}
+
+function startRealtime(){
+supabaseClient
+.channel('app_state_changes')
+.on(
+'postgres_changes',
+{
+event:'*',
+schema:'public',
+table:'app_state'
+},
+(payload)=>{
+console.log('REALTIME UPDATE',payload);
+
+if(payload.new && payload.new.data){
+cloudState = payload.new.data;
+renderInventory();
+}
+
+statusEl.innerHTML='Получено realtime обновление';
+
+setTimeout(()=>{
+statusEl.innerHTML='Подключено к realtime cloud storage';
+},1500);
+}
+)
+.subscribe();
+}
+
+loadCloudState();
+startRealtime();
+</script>
+
+</body>
+</html>
