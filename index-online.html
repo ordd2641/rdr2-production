@@ -436,6 +436,26 @@ needed:{},
 production_history:{}
 };
 
+const craftedProductsToRemove=[
+'Жареные котлеты',
+'Картошка с мясом',
+'Кофе',
+'Тушеное мясо по-апалачски',
+'Суп чероки',
+'Цыпленок табака',
+'Чай из женьшеня',
+'Чай пузэр'
+];
+
+function cleanupCraftedProducts(){
+craftedProductsToRemove.forEach(item=>{
+if(cloudState.inventory && cloudState.inventory[item]!=null){
+delete cloudState.inventory[item];
+}
+});
+}
+
+
 allIngredients.forEach(i=>{
 if(cloudState.inventory[i]==null) cloudState.inventory[i]=0;
 if(cloudState.prices[i]==null) cloudState.prices[i]=0;
@@ -462,6 +482,8 @@ cloudStateEl.innerHTML=`ID: ${data.id}<br>Обновлено: ${data.updated_at}
 if(data.data){
 cloudState=data.data;
 }
+
+cleanupCraftedProducts();
 
 if(!cloudState.inventory) cloudState.inventory={};
 if(!cloudState.prices) cloudState.prices={};
@@ -591,6 +613,7 @@ card.innerHTML=`
 <div style="font-size:12px;color:var(--gold2);margin-top:6px;">Себестоимость: $${cost.toFixed(2)}</div>
 <div style="display:flex;gap:8px;margin-top:14px;">
 <button style="flex:1" onclick="craftItem('${name}')">Произвести</button>
+<button onclick="undoCraft('${name}')">↶</button>
 
 </div>
 `;
@@ -742,6 +765,7 @@ table:'app_state'
 },payload=>{
 if(payload.new && payload.new.data){
 cloudState=payload.new.data;
+cleanupCraftedProducts();
 
 if(!cloudState.inventory) cloudState.inventory={};
 if(!cloudState.prices) cloudState.prices={};
@@ -811,7 +835,15 @@ await saveCloudState();
 }
 
 async function undoCraft(name){
-return;
+const recipe=recipes[name];
+if(!recipe) return;
+
+for(const [ing,amount] of Object.entries(recipe.ingredients)){
+cloudState.inventory[ing]=(cloudState.inventory[ing]||0)+amount;
+}
+
+renderAll();
+await saveCloudState();
 }
 
 loadCloudState();
