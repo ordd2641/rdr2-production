@@ -306,16 +306,18 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 </div>
 
 <div id="inventory-section" class="tab-section">
-<div class="card">
+<div class="card" style="position:relative;">
 <h1>RDR2 Production — Online</h1>
 
-<div id="status" class="status loading">
+<div style="position:absolute;top:18px;right:20px;text-align:right;font-size:11px;line-height:1.4;color:#b79d77;">
+<div id="status" class="status loading" style="padding:6px 10px;margin-bottom:6px;font-size:11px;">
 Подключение к облаку...
 </div>
 
-<div style="margin-top:20px">
-<b>Supabase:</b><br>
-<span id="cloud-state">Ожидание подключения...</span><div id="sync-state" style="margin-top:8px;color:#c89b63;"></div>
+<div>
+<span id="cloud-state">Ожидание подключения...</span>
+<div id="sync-state" style="margin-top:4px;color:#c89b63;font-size:10px;"></div>
+</div>
 </div>
 
 <div style="margin-top:30px;border-top:1px solid #4a3828;padding-top:20px;">
