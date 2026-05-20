@@ -934,6 +934,10 @@ time:new Date().toLocaleString('ru-RU'),
 ingredients:recipe.ingredients
 });
 
+if(cloudState.production_history.length>50){
+cloudState.production_history=cloudState.production_history.slice(-50);
+}
+
 renderAll();
 
 await saveCloudState();
