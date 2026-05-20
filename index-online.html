@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RDR2 Production Online</title>
+<title>Континенталь Online</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Roboto+Condensed:wght@300;400;700&display=swap" rel="stylesheet">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -235,9 +235,73 @@ grid-template-columns:repeat(2,minmax(0,1fr));
 grid-template-columns:1fr;
 }
 }
+
+.auth-screen{
+position:fixed;
+inset:0;
+background:linear-gradient(to bottom,#120b08,#0a0604);
+display:flex;
+align-items:center;
+justify-content:center;
+z-index:9999999;
+}
+
+.auth-box{
+width:340px;
+background:#1b130f;
+border:1px solid #5a3c24;
+border-radius:14px;
+padding:28px;
+box-shadow:0 8px 30px rgba(0,0,0,.5);
+}
+
+.auth-title{
+font-size:24px;
+margin-bottom:18px;
+color:#f0d9a1;
+text-align:center;
+font-family:'Cinzel',serif;
+}
+
+.auth-input{
+margin-bottom:14px;
+}
+
+.auth-error{
+color:#ff7f7f;
+font-size:13px;
+margin-top:10px;
+text-align:center;
+}
+
 </style>
 </head>
 <body>
+
+<div id="auth-screen" class="auth-screen">
+<div class="auth-box">
+
+<div class="auth-title">
+Континенталь
+</div>
+
+<input 
+id="password-input"
+class="auth-input"
+type="password"
+placeholder="Введите пароль">
+
+<button 
+style="width:100%;padding:12px;font-size:15px;"
+onclick="checkPassword()">
+Войти
+</button>
+
+<div id="auth-error" class="auth-error"></div>
+
+</div>
+</div>
+
 <div class="main-wrapper">
 
 <style>
@@ -307,7 +371,7 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 
 <div id="inventory-section" class="tab-section">
 <div class="card" style="position:relative;">
-<h1>RDR2 Production — Online</h1>
+<h1>Континенталь</h1>
 
 <div style="position:absolute;top:18px;right:20px;text-align:right;font-size:11px;line-height:1.4;color:#b79d77;">
 <div id="status" class="status loading" style="padding:6px 10px;margin-bottom:6px;font-size:11px;">
@@ -961,6 +1025,67 @@ cloudState.inventory[ing]=(cloudState.inventory[ing]||0)+amount;
 renderAll();
 await saveCloudState();
 }
+
+
+const APP_PASSWORD='1122';
+
+function checkSavedAuth(){
+const saved=localStorage.getItem('rdr2_auth');
+
+if(saved){
+const data=JSON.parse(saved);
+
+if(data.expires>Date.now()){
+document.getElementById('auth-screen').style.display='none';
+return true;
+}
+}
+
+return false;
+}
+
+function checkPassword(){
+const input=document.getElementById('password-input').value;
+const error=document.getElementById('auth-error');
+
+if(input===APP_PASSWORD){
+
+localStorage.setItem('rdr2_auth',JSON.stringify({
+expires:Date.now()+(1000*60*60*24*30)
+}));
+
+document.getElementById('auth-screen').style.display='none';
+return;
+}
+
+error.innerHTML='Неверный пароль';
+}
+
+window.addEventListener('keydown',e=>{
+if(e.key==='Enter'){
+const auth=document.getElementById('auth-screen');
+
+if(auth && auth.style.display!=='none'){
+checkPassword();
+}
+}
+});
+
+if(!checkSavedAuth()){
+document.querySelector('.main-wrapper').style.display='none';
+
+const observer=setInterval(()=>{
+const auth=document.getElementById('auth-screen');
+
+if(auth.style.display==='none'){
+document.querySelector('.main-wrapper').style.display='block';
+clearInterval(observer);
+}
+},200);
+}else{
+document.querySelector('.main-wrapper').style.display='block';
+}
+
 
 loadCloudState();
 startRealtime();
