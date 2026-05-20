@@ -302,6 +302,7 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 <button class="tab-btn active" onclick="openTab('inventory-section',this)">Склад</button>
 <button class="tab-btn" onclick="openTab('craft-section',this)">Производство</button>
 <button class="tab-btn" onclick="openTab('needed-section',this)">Что нужно</button>
+<button class="tab-btn" onclick="openTab('log-section',this)">Лог производства</button>
 </div>
 
 <div id="inventory-section" class="tab-section">
@@ -314,7 +315,7 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 
 <div style="margin-top:20px">
 <b>Supabase:</b><br>
-<span id="cloud-state">Ожидание подключения...</span>
+<span id="cloud-state">Ожидание подключения...</span><div id="sync-state" style="margin-top:8px;color:#c89b63;"></div>
 </div>
 
 <div style="margin-top:30px;border-top:1px solid #4a3828;padding-top:20px;">
@@ -371,7 +372,18 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 </div>
 </div>
 </div>
+
+<div id="log-section" class="tab-section" style="display:none">
+<div class="card">
+<div style="margin-top:40px;border-top:1px solid #4a3828;padding-top:20px;">
+<h2>Лог производства</h2>
+
+<div id="production-log"></div>
+
 </div>
+</div>
+</div>
+
 
 <script>
 const SUPABASE_URL='https://cypspnueblwlwqmkwxvr.supabase.co';
@@ -438,6 +450,8 @@ const recipes={
 
 const allIngredients=[...new Set(Object.values(recipes).flatMap(r=>Object.keys(r.ingredients)))].sort();
 
+let isCrafting=false;
+
 let cloudState={
 inventory:{},
 prices:{},
@@ -497,7 +511,7 @@ cleanupCraftedProducts();
 if(!cloudState.inventory) cloudState.inventory={};
 if(!cloudState.prices) cloudState.prices={};
 if(!cloudState.needed) cloudState.needed={};
-if(!cloudState.production_history) cloudState.production_history={};
+if(!cloudState.production_history) cloudState.production_history=[];
 
 allIngredients.forEach(i=>{
 if(cloudState.inventory[i]==null) cloudState.inventory[i]=0;
@@ -511,6 +525,7 @@ function renderAll(){
 renderInventory();
 renderCrafting();
 renderNeeded();
+renderProductionLog();
 }
 
 function renderInventory(){
@@ -631,6 +646,49 @@ craftingView.appendChild(card);
 });
 });
 }
+
+
+function renderProductionLog(){
+const logContainer=document.getElementById('production-log');
+
+if(!logContainer) return;
+
+logContainer.innerHTML='';
+
+const logs=[...(cloudState.production_history||[])].reverse();
+
+if(logs.length===0){
+logContainer.innerHTML='<div class="card">Лог пока пуст</div>';
+return;
+}
+
+logs.forEach(log=>{
+const card=document.createElement('div');
+card.className='card';
+card.style.marginBottom='12px';
+
+const ingredients=Object.entries(log.ingredients||{})
+.map(([ing,amount])=>`<div style="margin-top:4px;">- ${ing}: ${amount}</div>`)
+.join('');
+
+card.innerHTML=`
+<div style="font-size:12px;color:#b79d77;margin-bottom:8px;">
+${log.time}
+</div>
+
+<div style="font-size:18px;font-weight:700;color:#f0d9a1;">
+${log.item}
+</div>
+
+<div style="margin-top:10px;">
+${ingredients}
+</div>
+`;
+
+logContainer.appendChild(card);
+});
+}
+
 
 function renderNeeded(){
 const products=document.getElementById('needed-products');
@@ -791,14 +849,30 @@ renderAll();
 .subscribe();
 }
 
+
 async function saveCloudState(){
+
+const sync=document.getElementById('sync-state');
+
+if(sync){
+sync.innerHTML='Синхронизация...';
+}
+
 await supabaseClient
 .from('app_state')
 .update({
 data:cloudState
 })
 .eq('id',1);
+
+if(sync){
+sync.innerHTML='Сохранено';
+setTimeout(()=>{
+sync.innerHTML='';
+},1500);
 }
+}
+
 
 async function changeItem(name,delta){
 if(cloudState.inventory[name]==null){
@@ -823,14 +897,25 @@ renderAll();
 await saveCloudState();
 }
 
+
 async function craftItem(name){
+
+if(isCrafting) return;
+
+isCrafting=true;
+
 const recipe=recipes[name];
-if(!recipe) return;
+if(!recipe){
+isCrafting=false;
+return;
+}
 
 for(const [ing,amount] of Object.entries(recipe.ingredients)){
 const have=cloudState.inventory[ing]||0;
 
 if(have<amount){
+alert('Недостаточно ингредиентов');
+isCrafting=false;
 return;
 }
 }
@@ -839,9 +924,25 @@ for(const [ing,amount] of Object.entries(recipe.ingredients)){
 cloudState.inventory[ing]-=amount;
 }
 
-renderAll();
-await saveCloudState();
+if(!Array.isArray(cloudState.production_history)){
+cloudState.production_history=[];
 }
+
+cloudState.production_history.push({
+item:name,
+time:new Date().toLocaleString('ru-RU'),
+ingredients:recipe.ingredients
+});
+
+renderAll();
+
+await saveCloudState();
+
+setTimeout(()=>{
+isCrafting=false;
+},500);
+}
+
 
 async function undoCraft(name){
 const recipe=recipes[name];
