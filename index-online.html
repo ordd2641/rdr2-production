@@ -47,10 +47,12 @@ padding:18px;
 }
 
 .tabs{
-position:fixed;
-top:0;
-left:0;
-right:0;
+margin-top:20px;
+margin-bottom:24px;
+position:relative;
+top:auto;
+left:auto;
+right:auto;
 height:64px;
 display:flex;
 align-items:center;
@@ -366,6 +368,10 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 }
 </style>
 
+
+
+<div id="inventory-section" class="tab-section">
+<div class="card" style="position:relative;">
 <div class="tabs">
 <button class="tab-btn active" onclick="openTab('inventory-section',this)">Склад</button>
 <button class="tab-btn" onclick="openTab('craft-section',this)">Производство</button>
@@ -373,8 +379,6 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 <button class="tab-btn" onclick="openTab('log-section',this)">Лог производства</button>
 </div>
 
-<div id="inventory-section" class="tab-section">
-<div class="card" style="position:relative;">
 <h1>Континенталь</h1>
 
 <div style="position:absolute;top:18px;right:20px;text-align:right;font-size:11px;line-height:1.4;color:#b79d77;">
