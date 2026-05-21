@@ -1017,7 +1017,11 @@ return;
 }
 
 for(const [ing,amount] of Object.entries(recipe.ingredients)){
-cloudState.inventory[ing]-=amount;
+cloudState.inventory[ing]=Math.max(0,(cloudState.inventory[ing]||0)-amount);
+}
+
+if(name==='Спирт'){
+cloudState.inventory['Спирт']=(cloudState.inventory['Спирт']||0)+1;
 }
 
 if(!Array.isArray(cloudState.production_history)){
@@ -1047,6 +1051,15 @@ isCrafting=false;
 async function undoCraft(name){
 const recipe=recipes[name];
 if(!recipe) return;
+
+if(name==='Спирт'){
+
+if((cloudState.inventory['Спирт']||0)<=0){
+return;
+}
+
+cloudState.inventory['Спирт']-=1;
+}
 
 for(const [ing,amount] of Object.entries(recipe.ingredients)){
 cloudState.inventory[ing]=(cloudState.inventory[ing]||0)+amount;
