@@ -389,7 +389,7 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 </div>
 
 <div style="margin-top:30px;border-top:1px solid #4a3828;padding-top:20px;">
-<h2>Online склад</h2>
+<h2>Склад</h2>
 <div style="margin-bottom:18px;">
 <input id="inventory-search" type="text" placeholder="Поиск ингредиента..." style="width:100%;padding:10px 12px;background:#1b1410;border:1px solid #4a3828;color:#f3e7c9;border-radius:8px;font-size:14px;">
 </div>
@@ -405,7 +405,7 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 <div id="craft-section" class="tab-section" style="display:none">
 <div class="card">
 <div style="margin-top:40px;border-top:1px solid #4a3828;padding-top:20px;">
-<h2>Online производство</h2>
+<h2>Производство</h2>
 <div style="margin-bottom:18px;">
 <input id="craft-search" type="text" placeholder="Поиск рецепта..." style="width:100%;padding:10px 12px;background:#1b1410;border:1px solid #4a3828;color:#f3e7c9;border-radius:8px;font-size:14px;">
 </div>
@@ -430,6 +430,9 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 
 <div class="needed-column">
 <h3>Необходимые ингредиенты</h3>
+
+<div id="ordered-products-small" style="margin-bottom:14px;font-size:11px;color:#b79d77;line-height:1.4;"></div>
+
 <div id="needed-ingredients"></div>
 </div>
 
@@ -764,10 +767,15 @@ function renderNeeded(){
 const products=document.getElementById('needed-products');
 const ingredients=document.getElementById('needed-ingredients');
 const shopping=document.getElementById('needed-shopping');
+const orderedSmall=document.getElementById('ordered-products-small');
 
 products.innerHTML='';
 ingredients.innerHTML='';
 shopping.innerHTML='';
+
+if(orderedSmall){
+orderedSmall.innerHTML='';
+}
 
 const search=(document.getElementById('needed-search')?.value||'').toLowerCase();
 const totals={};
@@ -835,6 +843,17 @@ await saveCloudState();
 
 products.appendChild(card);
 
+if(value>0 && orderedSmall){
+
+const ordered=document.createElement('div');
+
+ordered.style.marginBottom='4px';
+
+ordered.innerHTML=`• ${name} x${value}`;
+
+orderedSmall.appendChild(ordered);
+}
+
 if(value>0){
 Object.entries(recipe.ingredients).forEach(([ing,amount])=>{
 if(!totals[ing]) totals[ing]=0;
@@ -855,8 +874,7 @@ const ingCard=document.createElement('div');
 ingCard.className='card';
 ingCard.style.marginBottom='12px';
 ingCard.innerHTML=`
-<div style="font-weight:700;color:var(--gold);">${ing}</div>
-<div style="margin-top:6px;">Нужно: ${total}</div>
+<div style="font-weight:700;color:var(--gold);">${ing}</div><div style="margin-top:4px;">Нужно: ${total}</div>
 <div>На складе: ${have}</div>
 <div style="color:${miss>0?'#ff7f7f':'#86d986'};margin-top:6px;">
 ${miss>0?`Не хватает: ${miss}`:'Хватает'}
