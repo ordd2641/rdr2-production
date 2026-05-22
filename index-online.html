@@ -657,8 +657,8 @@ ${name}
 </div>
 
 <div style="display:flex;gap:6px;margin-bottom:10px;">
-<button onclick="changeItem('${name}',1)" style="flex:1">+</button>
 <button onclick="changeItem('${name}',-1)" style="flex:1">-</button>
+<button onclick="changeItem('${name}',1)" style="flex:1">+</button>
 </div>
 
 <div style="display:flex;align-items:center;gap:8px;">
@@ -680,7 +680,7 @@ cloudState.ratings={};
 cloudState.ratings[item]=value;
 
 renderCrafting();
-saveCloudState();
+queueSave();
 }
 
 
@@ -812,7 +812,7 @@ cloudState.needed[key]=0;
 });
 
 renderNeeded();
-saveCloudState();
+queueSave();
 }
 
 
@@ -907,25 +907,25 @@ const remove=card.querySelector('.remove-btn');
 input.oninput=async()=>{
 cloudState.needed[name]=parseInt(input.value)||0;
 renderNeeded();
-await saveCloudState();
+queueSave();
 };
 
 plus.onclick=async()=>{
 cloudState.needed[name]=(cloudState.needed[name]||0)+1;
 renderNeeded();
-await saveCloudState();
+queueSave();
 };
 
 minus.onclick=async()=>{
 cloudState.needed[name]=Math.max(0,(cloudState.needed[name]||0)-1);
 renderNeeded();
-await saveCloudState();
+queueSave();
 };
 
 remove.onclick=async()=>{
 cloudState.needed[name]=0;
 renderNeeded();
-await saveCloudState();
+queueSave();
 };
 
 products.appendChild(card);
@@ -1025,6 +1025,19 @@ renderAll();
 }
 
 
+
+let saveTimeout=null;
+
+function queueSave(){
+
+clearTimeout(saveTimeout);
+
+saveTimeout=setTimeout(()=>{
+queueSave();
+},300);
+}
+
+
 async function saveCloudState(){
 
 const sync=document.getElementById('sync-state');
@@ -1057,19 +1070,19 @@ cloudState.inventory[name]=0;
 cloudState.inventory[name]=Math.max(0,(cloudState.inventory[name]||0)+delta);
 
 renderAll();
-await saveCloudState();
+queueSave();
 }
 
 async function setInventoryValue(name,value){
 cloudState.inventory[name]=Math.max(0,parseInt(value)||0);
 renderAll();
-await saveCloudState();
+queueSave();
 }
 
 async function changePrice(name,value){
 cloudState.prices[name]=Math.max(0,parseFloat(value)||0);
 renderAll();
-await saveCloudState();
+queueSave();
 }
 
 
@@ -1119,7 +1132,7 @@ cloudState.production_history=cloudState.production_history.slice(-50);
 
 renderAll();
 
-await saveCloudState();
+queueSave();
 
 setTimeout(()=>{
 isCrafting=false;
@@ -1145,7 +1158,7 @@ cloudState.inventory[ing]=(cloudState.inventory[ing]||0)+amount;
 }
 
 renderAll();
-await saveCloudState();
+queueSave();
 }
 
 
