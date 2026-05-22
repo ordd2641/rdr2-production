@@ -426,15 +426,7 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 <div id="needed-section" class="tab-section" style="display:none">
 <div class="card">
 <div style="margin-top:40px;border-top:1px solid #4a3828;padding-top:20px;">
-<h2 style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
-<span>Что нужно</span>
-
-<button 
-onclick="clearNeededOrders()"
-style="padding:6px 10px;font-size:12px;">
-Очистить все
-</button>
-</h2>
+<h2>Что нужно</h2>
 
 <input id="needed-search" placeholder="Поиск товара..." style="width:100%;padding:10px;background:rgba(28,20,16,.93);border:1px solid #4e3a29;color:#f3e7c9;border-radius:8px;margin-bottom:18px;">
 
@@ -856,7 +848,20 @@ alcohol:Object.entries(recipes)
 Object.entries(grouped).forEach(([group,items])=>{
 const title=document.createElement('div');
 title.className='section-title';
-title.innerHTML=`<h3>${group==='food'?'ЕДА':'АЛКОГОЛЬ'}</h3>`;
+title.innerHTML=`
+<div style="display:flex;justify-content:space-between;align-items:center;">
+<h3 style="margin:0;">${group==='food'?'ЕДА':'АЛКОГОЛЬ'}</h3>
+
+${group==='food' ? `
+<button 
+onclick="clearNeededOrders()"
+style="padding:4px 8px;font-size:11px;">
+Очистить все
+</button>
+` : ''}
+
+</div>
+`;
 products.appendChild(title);
 
 items.forEach(([name,recipe])=>{
@@ -871,8 +876,22 @@ card.className='card';
 card.style.marginBottom='12px';
 
 card.innerHTML=`
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+
+<div>
 <div style="font-weight:700;color:var(--gold);margin-bottom:6px;">${name}</div>
 <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Выход x${recipe.output}</div>
+</div>
+
+<button 
+class="remove-btn"
+style="padding:2px 7px;font-size:11px;line-height:1;">
+✕
+</button>
+
+</div>
+
 <div style="display:flex;gap:8px;align-items:center;">
 <button class="minus-btn">-</button>
 <input type="number" value="${value}" style="width:80px;">
@@ -883,6 +902,7 @@ card.innerHTML=`
 const input=card.querySelector('input');
 const plus=card.querySelector('.plus-btn');
 const minus=card.querySelector('.minus-btn');
+const remove=card.querySelector('.remove-btn');
 
 input.oninput=async()=>{
 cloudState.needed[name]=parseInt(input.value)||0;
@@ -898,6 +918,12 @@ await saveCloudState();
 
 minus.onclick=async()=>{
 cloudState.needed[name]=Math.max(0,(cloudState.needed[name]||0)-1);
+renderNeeded();
+await saveCloudState();
+};
+
+remove.onclick=async()=>{
+cloudState.needed[name]=0;
 renderNeeded();
 await saveCloudState();
 };
