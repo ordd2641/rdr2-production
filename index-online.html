@@ -426,7 +426,15 @@ box-shadow:inset 0 -2px 0 #c89b3c;
 <div id="needed-section" class="tab-section" style="display:none">
 <div class="card">
 <div style="margin-top:40px;border-top:1px solid #4a3828;padding-top:20px;">
-<h2>Что нужно</h2>
+<h2 style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+<span>Что нужно</span>
+
+<button 
+onclick="clearNeededOrders()"
+style="padding:6px 10px;font-size:12px;">
+Очистить все
+</button>
+</h2>
 
 <input id="needed-search" placeholder="Поиск товара..." style="width:100%;padding:10px;background:rgba(28,20,16,.93);border:1px solid #4e3a29;color:#f3e7c9;border-radius:8px;margin-bottom:18px;">
 
@@ -801,6 +809,18 @@ ${ingredients}
 
 logContainer.appendChild(card);
 });
+}
+
+
+
+function clearNeededOrders(){
+
+Object.keys(cloudState.needed||{}).forEach(key=>{
+cloudState.needed[key]=0;
+});
+
+renderNeeded();
+saveCloudState();
 }
 
 
