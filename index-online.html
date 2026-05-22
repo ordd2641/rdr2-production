@@ -537,7 +537,8 @@ let cloudState={
 inventory:{},
 prices:{},
 needed:{},
-production_history:{}
+production_history:{},
+ratings:{}
 };
 
 const craftedProductsToRemove=[
@@ -593,6 +594,7 @@ if(!cloudState.inventory) cloudState.inventory={};
 if(!cloudState.prices) cloudState.prices={};
 if(!cloudState.needed) cloudState.needed={};
 if(!cloudState.production_history) cloudState.production_history=[];
+if(!cloudState.ratings) cloudState.ratings={};
 
 allIngredients.forEach(i=>{
 if(cloudState.inventory[i]==null) cloudState.inventory[i]=0;
@@ -669,6 +671,19 @@ inventoryView.appendChild(div);
 });
 }
 
+
+function setRating(item,value){
+if(!cloudState.ratings){
+cloudState.ratings={};
+}
+
+cloudState.ratings[item]=value;
+
+renderCrafting();
+saveCloudState();
+}
+
+
 function renderCrafting(){
 craftingView.innerHTML='';
 craftingView.className='production-grid';
@@ -710,8 +725,26 @@ if(!isFinite(possible)) possible=0;
 const card=document.createElement('div');
 card.className='card production-item';
 
+const rating=cloudState.ratings?.[name]||0;
+
+const stars=[1,2,3,4].map(i=>{
+return `<span 
+onclick="setRating('${name}',${i})"
+style="cursor:pointer;font-size:14px;color:${i<=rating?'#ffd27d':'#5f4a32'};">
+★
+</span>`;
+}).join('');
+
 card.innerHTML=`
-<h3>${name}</h3>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+<h3 style="margin:0;">${name}</h3>
+
+<div style="display:flex;gap:2px;">
+${stars}
+</div>
+</div>
+
 <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Выход: x${recipe.output}</div>
 <div>${ingredientsHtml}</div>
 <div style="margin-top:12px;font-size:13px;">Можно создать: <b>${possible}</b></div>
