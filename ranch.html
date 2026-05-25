@@ -341,12 +341,25 @@ renderAll();
 })
 .subscribe();
 
+
 function addLog(text){
+
+if(!Array.isArray(state.logs)){
+state.logs=[];
+}
 
 state.logs.unshift({
 text,
 createdAt:Date.now()
 });
+
+state.logs=state.logs.slice(0,100);
+
+renderLogs();
+
+queueSave();
+}
+);
 
 const limit=100;
 
@@ -745,7 +758,7 @@ ${seed.name}
 id="manual-${seed.name}"
 type="number"
 placeholder="Кол-во"
-style="width:90px;">
+style="flex:1;">
 
 <button onclick="saveInventoryItem('${seed.name}')">
 Сохранить
@@ -786,11 +799,14 @@ queueSave();
 }
 
 
+
 function renderLogs(){
 
 const root=document.getElementById('logs-list');
 
 root.innerHTML='';
+
+if(!Array.isArray(state.logs)) return;
 
 state.logs.forEach(log=>{
 
@@ -799,7 +815,7 @@ const card=document.createElement('div');
 card.className='card';
 
 card.innerHTML=`
-<div class="small">
+<div class="small" style="font-size:10px;">
 ${new Date(log.createdAt).toLocaleString('ru-RU')}
 </div>
 
@@ -811,6 +827,8 @@ ${log.text}
 root.appendChild(card);
 
 });
+}
+);
 }
 
 function renderAll(){
