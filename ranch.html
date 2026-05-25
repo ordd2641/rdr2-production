@@ -850,6 +850,30 @@ queueSave();
 
 }
 
+
+function removeOrderItem(orderId,name){
+
+const order=state.orders.find(
+o=>String(o.id)===String(orderId)
+);
+
+if(!order)return;
+
+pushHistory(`Удаление позиции ${name}`);
+
+order.items=order.items.filter(
+item=>item.name!==name
+);
+
+addLog(`${currentUser} удалил ${name} из заказа`);
+
+renderOrders();
+
+queueSave();
+
+}
+
+
 function toggleOrderEdit(id){
 
 const order=state.orders.find(
@@ -951,9 +975,21 @@ const needSeeds=Math.ceil(missing/5);
 return `
 <div style="padding:8px;border:1px solid #384250;border-radius:8px;margin-bottom:8px;background:${stock>=item.amount?'rgba(40,90,40,.25)':'rgba(90,40,40,.25)'};">
 
-<div>${item.name} x${item.amount}</div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
 
-<div class="small">
+<div>
+${item.name} x${item.amount}
+</div>
+
+<button
+onclick="removeOrderItem('${order.id}','${item.name}')"
+style="background:#6a2f35;color:white;padding:2px 8px;border:none;border-radius:6px;">
+✕
+</button>
+
+</div>
+
+<div class="small" style="margin-top:6px;">
 На складе: ${stock}
 </div>
 
