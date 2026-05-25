@@ -361,10 +361,13 @@ queueSave();
 }
 
 
+
 function renderGrowth(){
 
 const growing=document.getElementById('growing-list');
 const ready=document.getElementById('ready-list');
+
+if(!growing || !ready)return;
 
 growing.innerHTML='';
 ready.innerHTML='';
@@ -380,6 +383,7 @@ card.className='card';
 if(Date.now()>=p.readyAt){
 
 card.innerHTML=`
+
 <div>${p.name}</div>
 
 <div class="small">
@@ -392,7 +396,7 @@ card.innerHTML=`
 
 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
 
-<button onclick="collect(${p.id})">
+<button onclick="collect('${p.id}')">
 Собрал
 </button>
 
@@ -412,10 +416,9 @@ ready.appendChild(card);
 const remaining=p.readyAt-Date.now();
 
 const minutes=Math.floor(remaining/1000/60);
-
 const seconds=Math.floor((remaining/1000)%60);
 
-const danger=minutes<10;
+const isDanger=minutes<10;
 
 card.innerHTML=`
 
@@ -437,7 +440,7 @@ card.innerHTML=`
 margin-top:10px;
 font-size:22px;
 font-weight:bold;
-color:${danger?'#ff6b6b':'#d6dde7'};
+color:${isDanger?'#ff6b6b':'#d6dde7'};
 ">
 
 ${minutes}:${String(seconds).padStart(2,'0')}
@@ -462,60 +465,7 @@ growing.appendChild(card);
 });
 
 }
-else{
-const remaining=p.readyAt-Date.now();
 
-const minutes=Math.floor(remaining/1000/60);
-const seconds=Math.floor((remaining/1000)%60);
-
-card.innerHTML=`
-
-<div style="display:flex;justify-content:space-between;align-items:flex-start;">
-
-<div>
-
-<div>${p.name}</div>
-
-<div class="small">
-Семян: x${p.amount}
-</div>
-
-<div class="small">
-Посадил: ${p.plantedBy}
-</div>
-
-<div class="small">
-Осталось: ${minutes}:${String(seconds).padStart(2,'0')}
-</div>
-
-</div>
-
-<button onclick="removePlant('${p.id}')">
-✕
-</button>
-
-</div>
-`;
-growing.appendChild(card);
-}
-});
-}
-
-function removePlant(id){
-
-const plant=state.plants.find(x=>x.id===id);
-
-if(!plant)return;
-
-state.plants=state.plants.filter(x=>String(x.id)!==String(id));
-
-addLog(`${currentUser} удалил посадку ${plant.name}`);
-
-renderGrowth();
-renderHistory();
-
-queueSave();
-}
 
 function collect(id){
 const plant=state.plants.find(x=>x.id===id);
