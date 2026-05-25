@@ -189,7 +189,6 @@ const seeds=[
 'Шпинат','Яблоко','Яйца','Мед'
 ].sort((a,b)=>a.localeCompare(b,'ru'));
 
-
 seeds.push(
 'Мясо дичи',
 'Оленина',
@@ -198,7 +197,6 @@ seeds.push(
 );
 
 seeds.sort((a,b)=>a.localeCompare(b,'ru'));
-
 
 let state={plants:[],inventory:{},orders:[],logs:[]};
 
@@ -355,7 +353,7 @@ card.innerHTML=`
 
 </div>
 
-<button onclick="removePlant(${p.id})">
+<button onclick="removePlant('${p.id}')">
 ✕
 </button>
 
@@ -366,14 +364,13 @@ growing.appendChild(card);
 });
 }
 
-
 function removePlant(id){
 
 const plant=state.plants.find(x=>x.id===id);
 
 if(!plant)return;
 
-state.plants=state.plants.filter(x=>x.id!==id);
+state.plants=state.plants.filter(x=>String(x.id)!==String(id));
 
 addLog(`${currentUser} удалил посадку ${plant.name}`);
 
@@ -382,12 +379,11 @@ renderGrowth();
 queueSave();
 }
 
-
 function collect(id){
 const plant=state.plants.find(x=>x.id===id);
 if(!plant)return;
 state.inventory[plant.name]=(state.inventory[plant.name]||0)+(plant.amount*5);
-state.plants=state.plants.filter(x=>x.id!==id);
+state.plants=state.plants.filter(x=>String(x.id)!==String(id));
 addLog(`${currentUser} собрал ${plant.name}`);
 renderGrowth();
 renderInventory();
@@ -455,9 +451,13 @@ ${['Черная смородина','Красная Малина','Редис',
 
 </div>
 
+<div style="display:flex;gap:6px;">
+
 <button onclick="toggleInventoryEdit('${name}')">
 ✎
 </button>
+
+</div>
 
 </div>
 
@@ -471,7 +471,7 @@ ${['Черная смородина','Красная Малина','Редис',
 id="edit-input-${name}"
 type="number"
 value="${val}"
-style="width:80px;">
+style="width:60px;">
 
 <button onclick="inventoryChange('${name}',1)">+</button>
 
@@ -489,7 +489,6 @@ root.appendChild(card);
 });
 
 }
-
 
 function toggleInventoryEdit(name){
 
@@ -525,7 +524,6 @@ renderInventory();
 
 queueSave();
 }
-
 
 function createOrder(){
 
@@ -568,7 +566,6 @@ renderOrders();
 queueSave();
 }
 
-
 function renderOrders(){
 
 const root=document.getElementById('orders-list');
@@ -594,7 +591,7 @@ ${seed}
 id="order-${order.id}-${seed}"
 type="number"
 placeholder="Кол-во"
-style="width:80px;">
+style="width:60px;">
 
 <button onclick="addOrderItem(${order.id},'${seed}')">
 Добавить
@@ -675,7 +672,7 @@ type="number"
 placeholder="Дней"
 value="${order.deliveryDays||''}"
 oninput="updateOrderDays(${order.id},this.value)"
-style="width:80px;">
+style="width:60px;">
 
 </div>
 
@@ -693,7 +690,7 @@ style="background:#5b3a1f;position:relative;top:-2px;">
 ${order.status==='ordered'?'Редактировать':'Оформить'}
 </button>
 
-<button onclick="removeOrder(${order.id})">
+<button onclick="this.closest('.card').remove();removeOrder(arguments[0].target.dataset.id)" data-id="${order.id}" style="background:#6a2f35;color:white;">
 ✕
 </button>
 
@@ -798,7 +795,6 @@ renderOrders();
 queueSave();
 }
 
-
 function completeOrder(id){
 
 const order=state.orders.find(o=>o.id===id);
@@ -828,7 +824,6 @@ renderInventory();
 queueSave();
 }
 
-
 function renderLogs(){
 const root=document.getElementById('logs-list');
 root.innerHTML='';
@@ -841,12 +836,27 @@ root.appendChild(card);
 }
 
 function queueSave(){
+
 clearTimeout(saveTimeout);
-saveTimeout=setTimeout(save,300);
+
+saveTimeout=setTimeout(()=>{
+
+save().catch(()=>{});
+
+},300);
+
 }
 
 async function save(){
-await supabaseClient.from('ranch_app').update({data:state}).eq('id',1);
+try{
+
+await supabaseClient
+.from('ranch_app')
+.update({data:state})
+.eq('id',1);
+
+}catch(e){}
+
 }
 
 async function load(){
@@ -868,7 +878,6 @@ if(!state.inventory) state.inventory={};
 if(!state.orders) state.orders=[];
 if(!state.logs) state.logs=[];
 
-
 seeds.forEach(seed=>{
 if(state.inventory[seed]===undefined){
 state.inventory[seed]=0;
@@ -889,7 +898,6 @@ console.error(e);
 
 checkAuth();
 load();
-
 
 supabaseClient
 .channel('emerald-ranch-sync')
