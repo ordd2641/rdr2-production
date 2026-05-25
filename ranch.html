@@ -636,6 +636,10 @@ root.innerHTML='';
 
 const search=(document.getElementById('inventory-search').value||'').toLowerCase();
 
+const grid=document.createElement('div');
+
+grid.className='grid';
+
 Object.entries(state.inventory)
 .filter(([name])=>name.toLowerCase().includes(search))
 .sort((a,b)=>a[0].localeCompare(b[0],'ru'))
@@ -661,7 +665,7 @@ ${name}
 
 </div>
 
-<button onclick="toggleEditInventory('${name}',${amount})">
+<button onclick="toggleEditInventory('${name}')">
 ✎
 </button>
 
@@ -677,7 +681,7 @@ ${name}
 id="edit-input-${name}"
 type="number"
 value="${amount}"
-style="width:90px;">
+style="width:70px;">
 
 <button onclick="changeInventory('${name}',1)">+</button>
 
@@ -690,388 +694,11 @@ style="width:90px;">
 </div>
 `;
 
-root.appendChild(card);
+grid.appendChild(card);
 
 });
-}
 
-
-function toggleEditInventory(name){
-
-const block=document.getElementById(`edit-${name}`);
-
-if(block.style.display==='none'){
-block.style.display='block';
-}else{
-block.style.display='none';
-}
-}
-
-function changeInventory(name,delta){
-
-const input=document.getElementById(`edit-input-${name}`);
-
-let value=parseInt(input.value)||0;
-
-value+=delta;
-
-if(value<0) value=0;
-
-input.value=value;
-}
-
-function saveInventoryEdit(name){
-
-const input=document.getElementById(`edit-input-${name}`);
-
-const value=parseInt(input.value)||0;
-
-state.inventory[name]=value;
-
-addLog(`${currentUser} изменил склад ${name} x${value}`);
-
-renderInventory();
-
-queueSave();
-}
-
-
-function createOrder(){
-
-state.orders.unshift({
-id:Date.now()+Math.random(),
-client:'',
-dueDate:'',
-deliveryDays:'',
-createdBy:currentUser,
-items:[],
-status:'editing'
-});
-
-renderOrders();
-
-queueSave();
-}
-
-function updateOrderClient(id,value){
-
-const order=state.orders.find(o=>String(o.id)===String(id));
-
-if(!order) return;
-
-order.client=value;
-
-queueSave();
-}
-
-function formatDate(date){
-
-const d=String(date.getDate()).padStart(2,'0');
-const m=String(date.getMonth()+1).padStart(2,'0');
-const y=date.getFullYear();
-
-return `${d}/${m}/${y}`;
-}
-
-function updateOrderDate(id,value){
-
-const order=state.orders.find(o=>String(o.id)===String(id));
-
-if(!order) return;
-
-order.dueDate=value;
-
-const parts=value.split('/');
-
-if(parts.length===3){
-
-const target=new Date(parts[2],parts[1]-1,parts[0]);
-
-const diff=Math.ceil((target-Date.now())/(1000*60*60*24));
-
-if(diff>0){
-order.deliveryDays=diff;
-}
-
-}
-
-queueSave();
-}
-
-function updateOrderDays(id,value){
-
-const order=state.orders.find(o=>String(o.id)===String(id));
-
-if(!order) return;
-
-order.deliveryDays=value;
-
-const days=parseInt(value)||0;
-
-if(days>0){
-
-const target=new Date(Date.now()+(days*24*60*60*1000));
-
-order.dueDate=formatDate(target);
-
-}
-
-queueSave();
-}
-
-function addOrderItem(orderId,herb){
-
-const order=state.orders.find(o=>String(o.id)===String(orderId));
-
-if(!order) return;
-
-const input=document.getElementById(`order-${orderId}-${herb}`);
-
-const amount=parseInt(input.value)||0;
-
-if(amount<=0) return;
-
-const existing=order.items.find(i=>i.name===herb);
-
-if(existing){
-existing.amount=amount;
-}else{
-order.items.push({
-name:herb,
-amount
-});
-}
-
-renderOrders();
-
-queueSave();
-}
-
-function toggleOrderEdit(id){
-
-const order=state.orders.find(o=>String(o.id)===String(id));
-
-if(!order) return;
-
-if(order.status==='editing'){
-order.status='ordered';
-addLog(`${currentUser} оформил заказ`);
-}else{
-order.status='editing';
-addLog(`${currentUser} редактирует заказ`);
-}
-
-renderOrders();
-
-queueSave();
-}
-
-function completeOrder(id){
-
-const order=state.orders.find(o=>String(o.id)===String(id));
-
-if(!order) return;
-
-order.items.forEach(item=>{
-
-if(state.inventory[item.name]){
-state.inventory[item.name]=Math.max(0,state.inventory[item.name]-item.amount);
-}
-
-});
-
-order.status='completed';
-
-addLog(`${currentUser} отметил заказ как доставленный`);
-
-renderOrders();
-
-queueSave();
-}
-
-function removeOrder(id){
-
-state.orders=state.orders.filter(o=>String(o.id)!==String(id));
-
-renderOrders();
-
-queueSave();
-}
-
-function renderOrders(){
-
-const root=document.getElementById('orders-list');
-
-root.innerHTML='';
-
-state.orders.forEach(order=>{
-
-const card=document.createElement('div');
-
-card.className='card';
-
-if(order.status==='completed'){
-card.style.opacity='0.6';
-}
-
-const left=seeds.map(seed=>{
-
-return `
-<div style="display:flex;gap:6px;margin-bottom:6px;">
-
-<input 
-id="order-${order.id}-${seed.name}"
-type="number"
-placeholder="${seed.name}"
-style="flex:1;">
-
-<button onclick="addOrderItem('${order.id}','${seed.name}')">
-Добавить
-</button>
-
-</div>
-`;
-
-}).join('');
-
-const right=order.items.map(item=>{
-
-const stock=state.inventory[item.name]||0;
-
-const enough=stock>=item.amount;
-
-const seedInfo=seeds.find(s=>s.name===item.name);
-
-const missing=Math.max(0,item.amount-stock);
-
-const needSeeds=seedInfo
-? Math.ceil(missing/seedInfo.yield)
-: 0;
-
-return `
-<div style="padding:8px;border:1px solid #5a3c24;border-radius:8px;margin-bottom:8px;background:${enough?'rgba(40,90,40,.25)':'rgba(90,40,40,.25)'};">
-
-<div style="font-size:16px;color:#f0d9a1;">
-${item.name} x${item.amount}
-</div>
-
-<div class="small">
-На складе: ${stock}
-</div>
-
-${!enough ? `
-<div class="red small">
-Не хватает: ${missing}<br>
-Нужно семян: ${needSeeds}
-</div>
-` : `
-<div class="green small">
-Достаточно
-</div>
-`}
-
-</div>
-`;
-
-}).join('');
-
-card.innerHTML=`
-
-<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px;">
-
-<div style="flex:1;max-width:420px;">
-
-<input 
-placeholder="Имя клиента"
-value="${order.client}"
-oninput="updateOrderClient('${order.id}',this.value)"
-style="width:100%;margin-bottom:10px;">
-
-<div style="display:flex;gap:8px;align-items:center;">
-
-<div class="small" style="min-width:95px;">
-Доставка на
-</div>
-
-<input 
-placeholder="dd/mm/yyyy"
-value="${order.dueDate}"
-oninput="updateOrderDate('${order.id}',this.value)"
-style="flex:1;">
-
-<div class="small">или через</div>
-
-<input 
-type="number"
-placeholder="Дней"
-value="${order.deliveryDays}"
-oninput="updateOrderDays('${order.id}',this.value)"
-style="width:90px;">
-
-</div>
-
-<div class="small" style="margin-top:8px;">
-Оформил: ${order.createdBy}
-</div>
-
-</div>
-
-<button onclick="removeOrder('${order.id}')">
-✕
-</button>
-
-</div>
-
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
-
-<div>
-
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-
-${order.status==='editing'
-? '<h3 style="margin:0;">Добавить травы</h3>'
-: '<div></div>'}
-
-<div style="display:flex;gap:6px;">
-
-${order.status!=='completed'
-? `<button 
-onclick="toggleOrderEdit('${order.id}')"
-style="background:#5b3a1f;position:relative;top:-2px;">
-${order.status==='editing'?'Оформить':'Редактировать'}
-</button>`
-: ''}
-
-${order.status==='ordered'
-? `<button onclick="completeOrder('${order.id}')">
-Заказ доставлен
-</button>`
-: ''}
-
-</div>
-
-</div>
-
-${order.status==='editing'
-? left
-: '<div class="small">Заказ оформлен</div>'}
-
-</div>
-
-<div>
-
-<h3>Заказ / Планировщик</h3>
-
-${right || '<div class="small">Пусто</div>'}
-
-</div>
-
-</div>
-`;
-
-root.appendChild(card);
-
-});
+root.appendChild(grid);
 
 }
 
@@ -1098,31 +725,33 @@ const wrap=document.createElement('div');
 
 wrap.className='card';
 
-wrap.style.maxWidth='1200px';
+wrap.style.maxWidth='1400px';
 
 wrap.innerHTML=`
-<div style="display:grid;grid-template-columns:repeat(5,minmax(180px,1fr));gap:10px;">
+<div class="grid">
 
 ${seeds.map(seed=>{
 
 return `
-<div style="border:1px solid #5a3c24;border-radius:8px;padding:8px;">
+<div class="card" style="padding:10px;">
 
-<div style="font-size:13px;margin-bottom:8px;">
+<div style="font-size:16px;color:#f0d9a1;margin-bottom:10px;">
 ${seed.name}
 </div>
+
+<div style="display:flex;gap:8px;align-items:center;">
 
 <input 
 id="manual-${seed.name}"
 type="number"
 placeholder="Кол-во"
-style="width:80px;margin-bottom:8px;">
-
-<br>
+style="width:90px;">
 
 <button onclick="saveInventoryItem('${seed.name}')">
 Сохранить
 </button>
+
+</div>
 
 </div>
 `;
