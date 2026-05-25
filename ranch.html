@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Континенталь Ranch</title>
+<title>Emerald Ranch</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -118,7 +118,7 @@ grid-template-columns:1fr;
 <div id="auth" class="auth">
 <div class="auth-box">
 
-<div class="section-title">Континенталь Ranch</div>
+<div class="section-title">Emerald Ranch</div>
 
 <input id="password" type="password" placeholder="Пароль" style="width:100%;margin-bottom:12px;">
 
@@ -146,12 +146,12 @@ grid-template-columns:1fr;
 <div class="wrapper">
 
 <div id="seeds" class="tab-section">
-<div class="section-title">Посадка</div>
+<div class="section-title">Посадка</div><input id="seed-search" placeholder="Поиск..." style="width:100%;margin-bottom:18px;" oninput="renderSeeds()">
 <div id="seed-list" class="grid"></div>
 </div>
 
 <div id="grow" class="tab-section" style="display:none;">
-<div class="section-title">Рост</div>
+<div class="section-title">Рост</div><input id="growth-search" placeholder="Поиск..." style="width:100%;margin-bottom:18px;" oninput="renderGrowth()">
 
 <div class="grow-layout">
 
@@ -169,7 +169,7 @@ grid-template-columns:1fr;
 </div>
 
 <div id="inventory" class="tab-section" style="display:none;">
-<div class="section-title">Склад</div>
+<div class="section-title">Склад</div><input id="inventory-search" placeholder="Поиск..." style="width:100%;margin-bottom:18px;" oninput="renderInventory()">
 <div id="inventory-list"></div>
 </div>
 
@@ -208,15 +208,60 @@ const USERS={
 
 let currentUser='';
 
+let isCollecting=false;
+
+let saveTimeout=null;
+
+function queueSave(){
+clearTimeout(saveTimeout);
+
+saveTimeout=setTimeout(()=>{
+queueSave();
+
+setTimeout(()=>{isCollecting=false;},500);
+},300);
+}
+
+
 const seeds=[
 {name:'Дикая мята',yield:5,growMinutes:150,business:'Алкоголь',spoils:false},
+{name:'Прерийный мак',yield:5,growMinutes:210,business:'Медицина',spoils:false},
+{name:'Тысячелистник',yield:5,growMinutes:195,business:'Медицина',spoils:false},
 {name:'Алоэ',yield:5,growMinutes:255,business:'Алкоголь',spoils:false},
 {name:'Агава',yield:5,growMinutes:225,business:'Алкоголь',spoils:false},
-{name:'Кукуруза',yield:6,growMinutes:225,business:'Еда',spoils:true},
+{name:'Молочай',yield:5,growMinutes:180,business:'Медицина',spoils:false},
+{name:'Олеандровый шалфей',yield:5,growMinutes:180,business:'Алкоголь',spoils:false},
+{name:'Сахарный тростник',yield:4,growMinutes:240,business:'Алкоголь',spoils:false},
+{name:'Черная смородина',yield:5,growMinutes:180,business:'Алкоголь',spoils:true},
+{name:'Хлопок',yield:4,growMinutes:225,business:'Ткань',spoils:false},
 {name:'Пшеница',yield:5,growMinutes:180,business:'Еда',spoils:false},
 {name:'Хмель',yield:5,growMinutes:180,business:'Алкоголь',spoils:false},
+{name:'Дикая морковь',yield:5,growMinutes:180,business:'Еда',spoils:false},
 {name:'Красная малина',yield:5,growMinutes:120,business:'Алкоголь',spoils:true},
-{name:'Черника',yield:5,growMinutes:120,business:'Алкоголь',spoils:true}
+{name:'Редис',yield:5,growMinutes:180,business:'Еда',spoils:true},
+{name:'Черника',yield:5,growMinutes:120,business:'Алкоголь',spoils:true},
+{name:'Кукуруза',yield:6,growMinutes:225,business:'Еда',spoils:true},
+{name:'Аляскинский женьшень',yield:5,growMinutes:180,business:'Медицина',spoils:false},
+{name:'Американский женьшень',yield:5,growMinutes:180,business:'Медицина',spoils:false},
+{name:'Грибница гриб-зонтика',yield:5,growMinutes:180,business:'Еда',spoils:false},
+{name:'Томат',yield:5,growMinutes:180,business:'Еда',spoils:true},
+{name:'Шпинат',yield:5,growMinutes:180,business:'Еда',spoils:true},
+{name:'Душица',yield:5,growMinutes:180,business:'Еда',spoils:false},
+{name:'Чок Дейзи',yield:5,growMinutes:180,business:'Медицина',spoils:false},
+{name:'Тимьян ползучего',yield:5,growMinutes:180,business:'Еда',spoils:false},
+{name:'Коки',yield:5,growMinutes:180,business:'Алкоголь',spoils:false},
+{name:'Риса',yield:5,growMinutes:180,business:'Еда',spoils:false},
+{name:'Капусты',yield:5,growMinutes:180,business:'Еда',spoils:true},
+{name:'Брокколи',yield:5,growMinutes:180,business:'Еда',spoils:true},
+{name:'Картофеля',yield:5,growMinutes:180,business:'Еда',spoils:true},
+{name:'Кровавого цветка',yield:5,growMinutes:180,business:'Алкоголь',spoils:false},
+{name:'Сливы ползучей',yield:5,growMinutes:180,business:'Алкоголь',spoils:true},
+{name:'Дикого чеснока',yield:5,growMinutes:180,business:'Еда',spoils:false},
+{name:'Английской булавы',yield:5,growMinutes:180,business:'Медицина',spoils:false},
+{name:'Индийского табака',yield:5,growMinutes:180,business:'Табак',spoils:false},
+{name:'Красного шалфея',yield:5,growMinutes:180,business:'Медицина',spoils:false},
+{name:'Зимнезеленой ягоды',yield:5,growMinutes:180,business:'Алкоголь',spoils:true},
+{name:'Каннабиса',yield:5,growMinutes:180,business:'Табак',spoils:false}
 ];
 
 let state={
@@ -337,7 +382,9 @@ const root=document.getElementById('seed-list');
 
 root.innerHTML='';
 
-seeds.forEach(seed=>{
+const search=(document.getElementById('seed-search')?.value||'').toLowerCase();
+
+seeds.filter(seed=>seed.name.toLowerCase().includes(search)).forEach(seed=>{
 
 const card=document.createElement('div');
 
@@ -389,7 +436,7 @@ addLog(`${currentUser} посадил ${name} x${amount}`);
 
 renderAll();
 
-await saveState();
+queueSave();
 }
 
 function renderGrowth(){
@@ -400,7 +447,12 @@ const ready=document.getElementById('ready-list');
 growing.innerHTML='';
 ready.innerHTML='';
 
-state.plants.forEach(plant=>{
+const growthSearch=(document.getElementById('growth-search')?.value||'').toLowerCase();
+
+[...state.plants]
+.filter(plant=>plant.name.toLowerCase().includes(growthSearch))
+.sort((a,b)=>a.readyAt-b.readyAt)
+.forEach(plant=>{
 
 const remaining=plant.readyAt-Date.now();
 
@@ -481,11 +533,15 @@ state.plants=state.plants.filter(p=>p.id!=id);
 
 renderAll();
 
-await saveState();
+queueSave();
 }
 
 
 async function collect(id){
+
+if(isCollecting) return;
+
+isCollecting=true;
 
 const plant=state.plants.find(p=>p.id===id);
 
@@ -505,7 +561,7 @@ state.plants=state.plants.filter(p=>p.id!==id);
 
 renderAll();
 
-await saveState();
+queueSave();
 }
 
 function renderInventory(){
@@ -514,7 +570,11 @@ const root=document.getElementById('inventory-list');
 
 root.innerHTML='';
 
-Object.entries(state.inventory).forEach(([name,amount])=>{
+const inventorySearch=(document.getElementById('inventory-search')?.value||'').toLowerCase();
+
+Object.entries(state.inventory)
+.filter(([name])=>name.toLowerCase().includes(inventorySearch))
+.forEach(([name,amount])=>{
 
 const card=document.createElement('div');
 
@@ -551,7 +611,7 @@ items:[]
 });
 
 renderOrders();
-saveState();
+queueSave();
 }
 
 function addOrderItem(orderId,herb){
@@ -578,7 +638,7 @@ amount
 }
 
 renderOrders();
-saveState();
+queueSave();
 }
 
 function renderOrders(){
@@ -695,7 +755,7 @@ ${left}
 </div>
 
 <div>
-<h3>Заказ</h3>
+<h3>Заказ / Планировщик</h3>
 ${right || '<div class="small">Пусто</div>'}
 </div>
 
@@ -711,20 +771,20 @@ function updateOrderClient(id,value){
 const order=state.orders.find(o=>o.id==id);
 if(!order) return;
 order.client=value;
-saveState();
+queueSave();
 }
 
 function updateOrderDate(id,value){
 const order=state.orders.find(o=>o.id==id);
 if(!order) return;
 order.dueDate=value;
-saveState();
+queueSave();
 }
 
 function removeOrder(id){
 state.orders=state.orders.filter(o=>o.id!=id);
 renderOrders();
-saveState();
+queueSave();
 }
 
 
@@ -771,6 +831,29 @@ renderGrowth();
 
 checkAuth();
 loadState();
+
+
+supabaseClient
+.channel('ranch-realtime')
+.on('postgres_changes',{
+event:'UPDATE',
+schema:'public',
+table:'ranch_app'
+},payload=>{
+
+if(payload.new && payload.new.data){
+state=payload.new.data;
+
+if(!state.plants) state.plants=[];
+if(!state.inventory) state.inventory={};
+if(!state.logs) state.logs=[];
+if(!state.orders) state.orders=[];
+
+renderAll();
+}
+})
+.subscribe();
+
 
 </script>
 
