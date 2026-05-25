@@ -216,7 +216,7 @@ function queueSave(){
 clearTimeout(saveTimeout);
 
 saveTimeout=setTimeout(()=>{
-queueSave();
+await saveState();
 
 setTimeout(()=>{isCollecting=false;},500);
 },300);
@@ -262,7 +262,7 @@ const seeds=[
 {name:'Красного шалфея',yield:5,growMinutes:180,business:'Медицина',spoils:false},
 {name:'Зимнезеленой ягоды',yield:5,growMinutes:180,business:'Алкоголь',spoils:true},
 {name:'Каннабиса',yield:5,growMinutes:180,business:'Табак',spoils:false}
-];
+].sort((a,b)=>a.name.localeCompare(b.name,'ru'));
 
 let state={
 plants:[],
@@ -587,7 +587,7 @@ if(!Array.isArray(state.orders)){
 state.orders=[];
 }
 
-state.orders.push({
+state.orders.unshift({
 id:Date.now()+Math.random(),
 client:'',
 dueDate:'',
