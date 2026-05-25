@@ -390,6 +390,10 @@ const card=document.createElement('div');
 
 card.className='card';
 
+if(order.status==='completed'){
+card.style.opacity='0.65';
+}
+
 card.innerHTML=`
 <div style="font-size:20px;color:#f0d9a1;margin-bottom:10px;">
 ${seed.name}
@@ -607,7 +611,8 @@ id:Date.now()+Math.random(),
 client:'',
 dueDate:'',
 createdBy:currentUser,
-items:[]
+items:[],
+status:'editing'
 });
 
 renderOrders();
@@ -640,6 +645,48 @@ amount
 renderOrders();
 queueSave();
 }
+
+
+function toggleOrderEdit(id){
+
+const order=state.orders.find(o=>String(o.id)===String(id));
+
+if(!order) return;
+
+if(order.status==='editing'){
+order.status='ordered';
+
+addLog(`${currentUser} оформил заказ`);
+}else{
+order.status='editing';
+
+addLog(`${currentUser} редактирует заказ`);
+}
+
+renderOrders();
+queueSave();
+}
+
+function completeOrder(id){
+
+const order=state.orders.find(o=>String(o.id)===String(id));
+
+if(!order) return;
+
+order.status='completed';
+
+order.items.forEach(item=>{
+if(state.inventory[item.name]){
+state.inventory[item.name]=Math.max(0,state.inventory[item.name]-item.amount);
+}
+});
+
+addLog(`${currentUser} отметил заказ как доставленный`);
+
+renderOrders();
+queueSave();
+}
+
 
 function renderOrders(){
 
@@ -761,8 +808,34 @@ style="width:100%;">
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
 
 <div>
-<h3>Добавить травы</h3>
-${left}
+
+${order.status==='editing' ? `
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+<h3 style="margin:0;">Добавить травы</h3>
+` : `
+<div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:10px;">
+`}
+
+<div style="display:flex;gap:6px;">
+
+${order.status!=='completed' ? `
+<button onclick="toggleOrderEdit('${order.id}')">
+${order.status==='editing'?'Оформить':'Редактировать'}
+</button>
+` : ''}
+
+${order.status==='ordered' ? `
+<button onclick="completeOrder('${order.id}')">
+Заказ доставлен
+</button>
+` : ''}
+
+</div>
+
+</div>
+
+${order.status==='editing' ? left : '<div class="small">Заказ оформлен</div>'}
+
 </div>
 
 <div>
@@ -778,6 +851,17 @@ root.appendChild(card);
 });
 }
 
+
+function formatDate(date){
+
+const d=String(date.getDate()).padStart(2,'0');
+const m=String(date.getMonth()+1).padStart(2,'0');
+const y=date.getFullYear();
+
+return `${d}/${m}/${y}`;
+}
+
+
 function updateOrderClient(id,value){
 const order=state.orders.find(o=>o.id==id);
 if(!order) return;
@@ -786,9 +870,26 @@ queueSave();
 }
 
 function updateOrderDate(id,value){
+
 const order=state.orders.find(o=>o.id==id);
+
 if(!order) return;
+
 order.dueDate=value;
+
+const parts=value.split('/');
+
+if(parts.length===3){
+
+const target=new Date(parts[2],parts[1]-1,parts[0]);
+
+const diff=Math.ceil((target-Date.now())/(1000*60*60*24));
+
+if(diff>0){
+order.deliveryDays=diff;
+}
+}
+
 queueSave();
 }
 
@@ -797,6 +898,27 @@ function updateOrderDays(id,value){
 const order=state.orders.find(o=>o.id==id);
 if(!order) return;
 order.deliveryDays=value;
+queueSave();
+}
+
+
+function updateOrderDays(id,value){
+
+const order=state.orders.find(o=>o.id==id);
+
+if(!order) return;
+
+order.deliveryDays=value;
+
+const days=parseInt(value)||0;
+
+if(days>0){
+
+const target=new Date(Date.now()+(days*24*60*60*1000));
+
+order.dueDate=formatDate(target);
+}
+
 queueSave();
 }
 
