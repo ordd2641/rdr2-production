@@ -102,6 +102,8 @@ const seeds=[
 ].sort((a,b)=>a.localeCompare(b,'ru'));
 
 let state={plants:[],inventory:{},orders:[],logs:[]};
+
+let saveTimeout=null;
 let currentUser='';
 
 function login(){
@@ -144,7 +146,7 @@ function addLog(text){
 state.logs.unshift({text,createdAt:Date.now()});
 state.logs=state.logs.slice(0,100);
 renderLogs();
-save();
+queueSave();
 }
 
 function renderSeeds(){
@@ -177,7 +179,7 @@ readyAt:Date.now()+3600000
 });
 addLog(`${currentUser} посадил ${seed} x${amount}`);
 renderGrowth();
-save();
+queueSave();
 }
 
 function renderGrowth(){
@@ -198,10 +200,25 @@ card.innerHTML=`
 <button onclick="collect(${p.id})">Собрал</button>`;
 ready.appendChild(card);
 }else{
+const remaining=p.readyAt-Date.now();
+
+const minutes=Math.floor(remaining/1000/60);
+const seconds=Math.floor((remaining/1000)%60);
+
 card.innerHTML=`
 <div>${p.name}</div>
-<div class="small">Семян: x${p.amount}</div>
-<div class="small">Посадил: ${p.plantedBy}</div>`;
+
+<div class="small">
+Семян: x${p.amount}
+</div>
+
+<div class="small">
+Посадил: ${p.plantedBy}
+</div>
+
+<div class="small">
+Осталось: ${minutes}:${String(seconds).padStart(2,'0')}
+</div>`;
 growing.appendChild(card);
 }
 });
@@ -215,7 +232,7 @@ state.plants=state.plants.filter(x=>x.id!==id);
 addLog(`${currentUser} собрал ${plant.name}`);
 renderGrowth();
 renderInventory();
-save();
+queueSave();
 }
 
 function toggleAdd(){
@@ -241,19 +258,111 @@ const val=parseInt(document.getElementById(`manual-${name}`).value)||0;
 state.inventory[name]=(state.inventory[name]||0)+val;
 addLog(`${currentUser} добавил ${name} x${val}`);
 renderInventory();
-save();
+queueSave();
 }
 
 function renderInventory(){
+
 const root=document.getElementById('inventory-list');
+
 root.innerHTML='';
-Object.entries(state.inventory).forEach(([name,val])=>{
+
+const search=(document.getElementById('inventory-search').value||'').toLowerCase();
+
+Object.entries(state.inventory)
+.filter(([name])=>name.toLowerCase().includes(search))
+.sort((a,b)=>a[0].localeCompare(b[0],'ru'))
+.forEach(([name,val])=>{
+
 const card=document.createElement('div');
+
 card.className='card';
-card.innerHTML=`<div>${name}</div><div>Количество: ${val}</div>`;
+
+card.innerHTML=`
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;">
+
+<div>
+
+<div>${name}</div>
+
+<div style="margin-top:8px;">
+Количество: ${val}
+</div>
+
+</div>
+
+<button onclick="toggleInventoryEdit('${name}')">
+✎
+</button>
+
+</div>
+
+<div id="edit-${name}" style="display:none;margin-top:10px;">
+
+<div style="display:flex;gap:8px;align-items:center;">
+
+<button onclick="inventoryChange('${name}',-1)">-</button>
+
+<input 
+id="edit-input-${name}"
+type="number"
+value="${val}"
+style="width:80px;">
+
+<button onclick="inventoryChange('${name}',1)">+</button>
+
+<button onclick="saveInventoryEdit('${name}')">
+Сохранить
+</button>
+
+</div>
+
+</div>
+`;
+
 root.appendChild(card);
+
 });
+
 }
+
+
+function toggleInventoryEdit(name){
+
+const el=document.getElementById(`edit-${name}`);
+
+el.style.display=el.style.display==='none'?'block':'none';
+}
+
+function inventoryChange(name,delta){
+
+const input=document.getElementById(`edit-input-${name}`);
+
+let value=parseInt(input.value)||0;
+
+value+=delta;
+
+if(value<0)value=0;
+
+input.value=value;
+}
+
+function saveInventoryEdit(name){
+
+const input=document.getElementById(`edit-input-${name}`);
+
+const value=parseInt(input.value)||0;
+
+state.inventory[name]=value;
+
+addLog(`${currentUser} изменил склад ${name} x${value}`);
+
+renderInventory();
+
+queueSave();
+}
+
 
 function createOrder(){
 
@@ -268,7 +377,7 @@ renderOrders();
 
 addLog(`${currentUser} создал заказ`);
 
-save();
+queueSave();
 }
 
 function addOrderItem(orderId,name){
@@ -293,8 +402,9 @@ order.items.push({name,amount});
 
 renderOrders();
 
-save();
+queueSave();
 }
+
 
 function renderOrders(){
 
@@ -308,37 +418,9 @@ const card=document.createElement('div');
 
 card.className='card';
 
-card.innerHTML=`
+const left=seeds.map(seed=>{
 
-<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
-
-<div style="max-width:320px;">
-
-<input 
-placeholder="Имя клиента"
-value="${order.client||''}"
-oninput="updateOrderClient(${order.id},this.value)"
-style="width:220px;">
-
-<div class="small" style="margin-top:8px;">
-Оформил: ${order.createdBy}
-</div>
-
-</div>
-
-<button onclick="removeOrder(${order.id})">
-✕
-</button>
-
-</div>
-
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
-
-<div>
-
-<h3 style="margin-top:0;">Добавить травы</h3>
-
-${seeds.map(seed=>`
+return `
 <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
 
 <div style="width:150px;font-size:13px;">
@@ -356,22 +438,22 @@ style="width:80px;">
 </button>
 
 </div>
-`).join('')}
+`;
 
-</div>
+}).join('');
 
-<div>
-
-<h3 style="margin-top:0;">Заказ</h3>
-
-${order.items.length===0
+const right=order.items.length===0
 ? '<div class="small">Пусто</div>'
 : order.items.map(item=>{
 
 const stock=state.inventory[item.name]||0;
 
+const missing=Math.max(0,item.amount-stock);
+
+const needSeeds=Math.ceil(missing/5);
+
 return `
-<div style="padding:8px;border:1px solid #5a3c24;border-radius:8px;margin-bottom:8px;">
+<div style="padding:8px;border:1px solid #5a3c24;border-radius:8px;margin-bottom:8px;background:${stock>=item.amount?'rgba(40,90,40,.25)':'rgba(90,40,40,.25)'};">
 
 <div>
 ${item.name} x${item.amount}
@@ -381,10 +463,99 @@ ${item.name} x${item.amount}
 На складе: ${stock}
 </div>
 
+${missing>0?`
+<div class="small" style="color:#ff7f7f;">
+Не хватает: ${missing}<br>
+Нужно семян: ${needSeeds}
+</div>
+`:`
+<div class="small" style="color:#86d986;">
+Достаточно
+</div>
+`}
+
 </div>
 `;
 
-}).join('')}
+}).join('');
+
+card.innerHTML=`
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+
+<div style="max-width:420px;">
+
+<input 
+placeholder="Имя клиента"
+value="${order.client||''}"
+oninput="updateOrderClient(${order.id},this.value)"
+style="width:220px;margin-bottom:10px;">
+
+<div style="display:flex;gap:8px;align-items:center;">
+
+<div class="small">
+Доставка на
+</div>
+
+<input 
+placeholder="dd/mm/yyyy"
+value="${order.dueDate||''}"
+oninput="updateOrderDate(${order.id},this.value)"
+style="width:120px;">
+
+<div class="small">
+или через
+</div>
+
+<input 
+type="number"
+placeholder="Дней"
+value="${order.deliveryDays||''}"
+oninput="updateOrderDays(${order.id},this.value)"
+style="width:80px;">
+
+</div>
+
+<div class="small" style="margin-top:8px;">
+Оформил: ${order.createdBy||''}
+</div>
+
+</div>
+
+<div style="display:flex;gap:8px;">
+
+<button 
+onclick="toggleOrderEdit(${order.id})"
+style="background:#5b3a1f;position:relative;top:-2px;">
+${order.status==='ordered'?'Редактировать':'Оформить'}
+</button>
+
+<button onclick="removeOrder(${order.id})">
+✕
+</button>
+
+</div>
+
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+
+<div>
+
+${order.status==='ordered'
+? '<div class="small">Заказ оформлен</div>'
+: `
+<h3 style="margin-top:0;">Добавить травы</h3>
+${left}
+`}
+
+</div>
+
+<div>
+
+<h3 style="margin-top:0;">Заказ / Планировщик</h3>
+
+${right}
 
 </div>
 
@@ -405,16 +576,42 @@ if(!order)return;
 
 order.client=value;
 
-save();
+queueSave();
 }
 
-function removeOrder(id){
+function updateOrderDate(id,value){
 
-state.orders=state.orders.filter(o=>o.id!==id);
+const order=state.orders.find(o=>o.id===id);
+
+if(!order)return;
+
+order.dueDate=value;
+
+queueSave();
+}
+
+function updateOrderDays(id,value){
+
+const order=state.orders.find(o=>o.id===id);
+
+if(!order)return;
+
+order.deliveryDays=value;
+
+queueSave();
+}
+
+function toggleOrderEdit(id){
+
+const order=state.orders.find(o=>o.id===id);
+
+if(!order)return;
+
+order.status=order.status==='ordered'?'editing':'ordered';
 
 renderOrders();
 
-save();
+queueSave();
 }
 
 function renderLogs(){
@@ -428,13 +625,67 @@ root.appendChild(card);
 });
 }
 
+function queueSave(){
+clearTimeout(saveTimeout);
+saveTimeout=setTimeout(save,300);
+}
+
 async function save(){
 await supabaseClient.from('ranch_app').update({data:state}).eq('id',1);
 }
 
 async function load(){
-const {data}=await supabaseClient.from('ranch_app').select('*').eq('id',1).single();
-if(data&&data.data)state=data.data;
+
+try{
+
+const {data}=await supabaseClient
+.from('ranch_app')
+.select('*')
+.eq('id',1)
+.single();
+
+if(data&&data.data){
+state=data.data;
+}
+
+if(!state.plants) state.plants=[];
+if(!state.inventory) state.inventory={};
+if(!state.orders) state.orders=[];
+if(!state.logs) state.logs=[];
+
+renderSeeds();
+renderGrowth();
+renderInventory();
+renderOrders();
+renderLogs();
+
+}catch(e){
+console.error(e);
+}
+
+}
+
+checkAuth();
+load();
+
+
+supabaseClient
+.channel('emerald-ranch-sync')
+.on('postgres_changes',{
+event:'UPDATE',
+schema:'public',
+table:'ranch_app'
+},payload=>{
+
+if(payload.new && payload.new.data){
+
+state=payload.new.data;
+
+if(!state.plants) state.plants=[];
+if(!state.inventory) state.inventory={};
+if(!state.orders) state.orders=[];
+if(!state.logs) state.logs=[];
+
 renderSeeds();
 renderGrowth();
 renderInventory();
@@ -442,8 +693,9 @@ renderOrders();
 renderLogs();
 }
 
-checkAuth();
-load();
+})
+.subscribe();
+
 setInterval(renderGrowth,1000);
 </script>
 </body>
