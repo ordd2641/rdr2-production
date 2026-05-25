@@ -173,7 +173,7 @@ grid-template-columns:1fr;
 
 <div id="inventory" class="tab-section" style="display:none;">
 
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+<div style="display:flex;justify-content:flex-start;align-items:center;gap:12px;margin-bottom:16px;">
 
 <div class="section-title" style="margin:0;">Склад</div>
 
@@ -646,6 +646,11 @@ const card=document.createElement('div');
 card.className='card';
 
 card.innerHTML=`
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+
+<div>
+
 <div style="font-size:18px;color:#f0d9a1;">
 ${name}
 </div>
@@ -653,12 +658,83 @@ ${name}
 <div style="margin-top:8px;">
 Количество: ${amount}
 </div>
+
+</div>
+
+<button onclick="toggleEditInventory('${name}',${amount})">
+✎
+</button>
+
+</div>
+
+<div id="edit-${name}" style="display:none;margin-top:12px;">
+
+<div style="display:flex;gap:8px;align-items:center;">
+
+<button onclick="changeInventory('${name}',-1)">-</button>
+
+<input 
+id="edit-input-${name}"
+type="number"
+value="${amount}"
+style="width:90px;">
+
+<button onclick="changeInventory('${name}',1)">+</button>
+
+<button onclick="saveInventoryEdit('${name}')">
+Сохранить
+</button>
+
+</div>
+
+</div>
 `;
 
 root.appendChild(card);
 
 });
 }
+
+
+function toggleEditInventory(name){
+
+const block=document.getElementById(`edit-${name}`);
+
+if(block.style.display==='none'){
+block.style.display='block';
+}else{
+block.style.display='none';
+}
+}
+
+function changeInventory(name,delta){
+
+const input=document.getElementById(`edit-input-${name}`);
+
+let value=parseInt(input.value)||0;
+
+value+=delta;
+
+if(value<0) value=0;
+
+input.value=value;
+}
+
+function saveInventoryEdit(name){
+
+const input=document.getElementById(`edit-input-${name}`);
+
+const value=parseInt(input.value)||0;
+
+state.inventory[name]=value;
+
+addLog(`${currentUser} изменил склад ${name} x${value}`);
+
+renderInventory();
+
+queueSave();
+}
+
 
 function createOrder(){
 
@@ -1022,12 +1098,17 @@ const wrap=document.createElement('div');
 
 wrap.className='card';
 
-wrap.innerHTML=seeds.map(seed=>{
+wrap.style.maxWidth='1200px';
+
+wrap.innerHTML=`
+<div style="display:grid;grid-template-columns:repeat(5,minmax(180px,1fr));gap:10px;">
+
+${seeds.map(seed=>{
 
 return `
-<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+<div style="border:1px solid #5a3c24;border-radius:8px;padding:8px;">
 
-<div style="flex:1;">
+<div style="font-size:13px;margin-bottom:8px;">
 ${seed.name}
 </div>
 
@@ -1035,7 +1116,9 @@ ${seed.name}
 id="manual-${seed.name}"
 type="number"
 placeholder="Кол-во"
-style="width:90px;">
+style="width:80px;margin-bottom:8px;">
+
+<br>
 
 <button onclick="saveInventoryItem('${seed.name}')">
 Сохранить
@@ -1044,7 +1127,10 @@ style="width:90px;">
 </div>
 `;
 
-}).join('');
+}).join('')}
+
+</div>
+`;
 
 root.appendChild(wrap);
 }
