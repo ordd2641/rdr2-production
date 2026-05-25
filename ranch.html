@@ -119,6 +119,7 @@ box-shadow:0 6px 20px rgba(0,0,0,.25);
 <button class="tab-btn" onclick="showTab('growth')">Рост</button>
 <button class="tab-btn" onclick="showTab('inventory')">Склад</button>
 <button class="tab-btn" onclick="showTab('orders')">Заказы</button>
+<button class="tab-btn" onclick="showTab('history')">Отмена</button>
 <button class="tab-btn" onclick="showTab('logs')">Лог</button>
 <div style="margin-left:auto">
 <button class="tab-btn" onclick="logout()">Выйти</button>
@@ -161,6 +162,10 @@ box-shadow:0 6px 20px rgba(0,0,0,.25);
 <div id="orders-list"></div>
 </div>
 
+<div id="history" class="tab" style="display:none">
+<div id="history-list"></div>
+</div>
+
 <div id="logs" class="tab" style="display:none">
 <div id="logs-list"></div>
 </div>
@@ -200,7 +205,7 @@ seeds.push(
 
 seeds.sort((a,b)=>a.localeCompare(b,'ru'));
 
-let state={plants:[],inventory:{},orders:[],logs:[]};
+let state={plants:[],inventory:{},orders:[],logs:[],history:[]};
 
 let saveTimeout=null;
 let currentUser='';
@@ -245,10 +250,32 @@ document.querySelectorAll('.tab').forEach(t=>t.style.display='none');
 document.getElementById(id).style.display='block';
 }
 
+
+function pushHistory(action){
+
+state.history.unshift({
+id:String(Date.now()+Math.random()),
+action,
+snapshot:JSON.parse(JSON.stringify(state)),
+createdAt:Date.now()
+});
+
+state.history=state.history.slice(0,20);
+
+renderHistory();
+
+renderHistory();
+
+}
+
+
 function addLog(text){
 state.logs.unshift({text,createdAt:Date.now()});
 state.logs=state.logs.slice(0,100);
 renderLogs();
+renderHistory();
+
+setTimeout(renderHistory,300);
 queueSave();
 }
 
@@ -274,8 +301,8 @@ ${seed}
 Урожай: x5
 </div>
 
-<div class="small" style="color:${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград'].includes(seed)?'#ff7f7f':'#8fd18f'};">
-${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград'].includes(seed)?'Портится':'Не портится'}
+<div class="small" style="color:${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Яйца'].includes(seed)?'#ff7f7f':'#8fd18f'};">
+${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Яйца'].includes(seed)?'Портится':'Не портится'}
 </div>
 
 <div style="display:flex;gap:8px;margin-top:10px">
@@ -305,6 +332,7 @@ amount,
 plantedBy:currentUser,
 readyAt:Date.now()+((GROWTH_TIMES[seed]||180)*60000)
 });
+pushHistory(`Посадка ${seed} x${amount}`);
 addLog(`${currentUser} посадил ${seed} x${amount}`);
 renderGrowth();
 queueSave();
@@ -377,6 +405,7 @@ state.plants=state.plants.filter(x=>String(x.id)!==String(id));
 addLog(`${currentUser} удалил посадку ${plant.name}`);
 
 renderGrowth();
+renderHistory();
 
 queueSave();
 }
@@ -386,6 +415,7 @@ const plant=state.plants.find(x=>x.id===id);
 if(!plant)return;
 state.inventory[plant.name]=(state.inventory[plant.name]||0)+(plant.amount*5);
 state.plants=state.plants.filter(x=>String(x.id)!==String(id));
+pushHistory(`Сбор ${plant.name}`);
 addLog(`${currentUser} собрал ${plant.name}`);
 renderGrowth();
 renderInventory();
@@ -413,6 +443,7 @@ root.innerHTML='<div class="grid">'+seeds.map(seed=>`
 function saveInventory(name){
 const val=parseInt(document.getElementById(`manual-${name}`).value)||0;
 state.inventory[name]=(state.inventory[name]||0)+val;
+pushHistory(`Добавление на склад ${name} x${val}`);
 addLog(`${currentUser} добавил ${name} x${val}`);
 renderInventory();
 queueSave();
@@ -447,8 +478,8 @@ card.innerHTML=`
 Количество: ${val}
 </div>
 
-<div class="small" style="margin-top:6px;color:${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Баранина','Говядина','Мясо дичи','Оленина','Мясо крупной дичи','Мясо птицы'].includes(name)?'#ff7f7f':'#8fd18f'};">
-${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Баранина','Говядина','Мясо дичи','Оленина','Мясо крупной дичи','Мясо птицы'].includes(name)?'Портится':'Не портится'}
+<div class="small" style="margin-top:6px;color:${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Баранина','Говядина','Мясо дичи','Оленина','Мясо крупной дичи','Мясо птицы','Яйца'].includes(name)?'#ff7f7f':'#8fd18f'};">
+${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Баранина','Говядина','Мясо дичи','Оленина','Мясо крупной дичи','Мясо птицы','Яйца'].includes(name)?'Портится':'Не портится'}
 </div>
 
 </div>
@@ -523,12 +554,109 @@ state.inventory[name]=value;
 addLog(`${currentUser} изменил склад ${name} x${value}`);
 
 renderInventory();
+renderHistory();
 
 queueSave();
 }
 
 
+
+function pushHistory(action){
+
+if(!state.history){
+state.history=[];
+}
+
+state.history.unshift({
+id:String(Date.now()+Math.random()),
+action,
+snapshot:JSON.parse(JSON.stringify({
+plants:state.plants,
+inventory:state.inventory,
+orders:state.orders,
+logs:state.logs
+})),
+createdAt:Date.now()
+});
+
+state.history=state.history.slice(0,20);
+
+renderHistory();
+
+}
+
+function renderHistory(){
+
+const root=document.getElementById('history-list');
+
+if(!root)return;
+
+root.innerHTML='';
+
+(state.history||[]).forEach(item=>{
+
+const card=document.createElement('div');
+
+card.className='card';
+
+card.innerHTML=`
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+
+<div>
+<div>${item.action}</div>
+
+<div class="small" style="margin-top:6px;">
+${new Date(item.createdAt).toLocaleString('ru-RU')}
+</div>
+</div>
+
+<button onclick="undoAction('${item.id}')">
+Отменить
+</button>
+
+</div>
+`;
+
+root.appendChild(card);
+
+});
+
+}
+
+function undoAction(id){
+
+const item=state.history.find(
+x=>String(x.id)===String(id)
+);
+
+if(!item)return;
+
+const restored=item.snapshot;
+
+state.plants=restored.plants||[];
+state.inventory=restored.inventory||{};
+state.orders=restored.orders||[];
+state.logs=restored.logs||[];
+
+state.history=state.history.filter(
+x=>String(x.id)!==String(id)
+);
+
+addLog(`${currentUser} отменил действие`);
+
+renderGrowth();
+renderInventory();
+renderOrders();
+renderLogs();
+renderHistory();
+
+queueSave();
+
+}
+
 function createOrder(){
+
+pushHistory('Создание заказа');
 
 state.orders.unshift({
 id:String(Date.now()+Math.random()),
@@ -550,7 +678,9 @@ queueSave();
 
 function updateOrderClient(id,value){
 
-const order=state.orders.find(o=>String(o.id)===String(id));
+const order=state.orders.find(
+o=>String(o.id)===String(id)
+);
 
 if(!order)return;
 
@@ -562,7 +692,9 @@ queueSave();
 
 function updateOrderDate(id,value){
 
-const order=state.orders.find(o=>String(o.id)===String(id));
+const order=state.orders.find(
+o=>String(o.id)===String(id)
+);
 
 if(!order)return;
 
@@ -574,7 +706,9 @@ queueSave();
 
 function updateOrderDays(id,value){
 
-const order=state.orders.find(o=>String(o.id)===String(id));
+const order=state.orders.find(
+o=>String(o.id)===String(id)
+);
 
 if(!order)return;
 
@@ -586,7 +720,9 @@ queueSave();
 
 function addOrderItem(orderId,name){
 
-const input=document.getElementById(`order-${orderId}-${name}`);
+const input=document.getElementById(
+`order-${orderId}-${name}`
+);
 
 if(!input)return;
 
@@ -594,11 +730,15 @@ const amount=parseInt(input.value)||0;
 
 if(amount<=0)return;
 
-const order=state.orders.find(o=>String(o.id)===String(orderId));
+const order=state.orders.find(
+o=>String(o.id)===String(orderId)
+);
 
 if(!order)return;
 
-const existing=order.items.find(i=>i.name===name);
+const existing=order.items.find(
+i=>i.name===name
+);
 
 if(existing){
 existing.amount=amount;
@@ -617,7 +757,9 @@ queueSave();
 
 function toggleOrderEdit(id){
 
-const order=state.orders.find(o=>String(o.id)===String(id));
+const order=state.orders.find(
+o=>String(o.id)===String(id)
+);
 
 if(!order)return;
 
@@ -633,7 +775,9 @@ queueSave();
 
 function completeOrder(id){
 
-const order=state.orders.find(o=>String(o.id)===String(id));
+const order=state.orders.find(
+o=>String(o.id)===String(id)
+);
 
 if(!order)return;
 
@@ -644,6 +788,8 @@ return (state.inventory[item.name]||0)>=item.amount;
 });
 
 if(!canComplete)return;
+
+pushHistory('Выполнение заказа');
 
 order.items.forEach(item=>{
 
@@ -669,6 +815,8 @@ queueSave();
 
 function removeOrder(id){
 
+pushHistory('Удаление заказа');
+
 state.orders=state.orders.filter(
 o=>String(o.id)!==String(id)
 );
@@ -689,7 +837,7 @@ if(!root)return;
 
 root.innerHTML='';
 
-state.orders.forEach(order=>{
+(state.orders||[]).forEach(order=>{
 
 const card=document.createElement('div');
 
@@ -706,24 +854,23 @@ const missing=Math.max(0,item.amount-stock);
 const needSeeds=Math.ceil(missing/5);
 
 return `
-<div style="padding:8px;border:1px solid #5a3c24;border-radius:8px;margin-bottom:8px;background:${stock>=item.amount?'rgba(40,90,40,.25)':'rgba(90,40,40,.25)'};">
+<div style="padding:8px;border:1px solid #384250;border-radius:8px;margin-bottom:8px;background:${stock>=item.amount?'rgba(40,90,40,.25)':'rgba(90,40,40,.25)'};">
 
-<div>
-${item.name} x${item.amount}
-</div>
+<div>${item.name} x${item.amount}</div>
 
 <div class="small">
 На складе: ${stock}
 </div>
 
-${missing>0?`
+${missing>0
+?`
 <div class="small" style="color:#ff7f7f;">
 Не хватает: ${missing}<br>
 Нужно семян: ${needSeeds}
 </div>
 `
 :`
-<div class="small" style="color:#86d986;">
+<div class="small" style="color:#8fd18f;">
 Достаточно
 </div>
 `
@@ -735,7 +882,9 @@ ${missing>0?`
 }).join('');
 
 const canComplete=order.items.length>0 &&
-order.items.every(item=>(state.inventory[item.name]||0)>=item.amount);
+order.items.every(
+item=>(state.inventory[item.name]||0)>=item.amount
+);
 
 card.innerHTML=`
 
@@ -743,7 +892,7 @@ card.innerHTML=`
 
 <div>
 
-<input 
+<input
 placeholder="Имя клиента"
 value="${order.client||''}"
 oninput="updateOrderClient('${order.id}',this.value)"
@@ -751,21 +900,17 @@ style="width:220px;margin-bottom:10px;">
 
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
 
-<div class="small">
-Доставка на
-</div>
+<div class="small">Доставка на</div>
 
-<input 
+<input
 placeholder="dd/mm/yyyy"
 value="${order.dueDate||''}"
 oninput="updateOrderDate('${order.id}',this.value)"
 style="width:120px;">
 
-<div class="small">
-или через
-</div>
+<div class="small">или через</div>
 
-<input 
+<input
 type="number"
 placeholder="Дней"
 value="${order.deliveryDays||''}"
@@ -775,20 +920,20 @@ style="width:70px;">
 </div>
 
 <div class="small" style="margin-top:8px;">
-Оформил: ${order.createdBy||''}
+Оформил: ${order.createdBy}
 </div>
 
 </div>
 
 <div style="display:flex;gap:8px;">
 
-<button 
+<button
 onclick="toggleOrderEdit('${order.id}')"
 style="background:#5b3a1f;">
 ${order.status==='ordered'?'Редактировать':'Оформить'}
 </button>
 
-<button 
+<button
 onclick="removeOrder('${order.id}')"
 style="background:#6a2f35;color:white;">
 ✕
@@ -814,7 +959,7 @@ ${seeds.map(seed=>`
 ${seed}
 </div>
 
-<input 
+<input
 id="order-${order.id}-${seed}"
 type="number"
 placeholder="Кол-во"
@@ -840,16 +985,16 @@ ${planner}
 ${order.items.length>0
 ? canComplete
 ? `
-<button 
+<button
 onclick="completeOrder('${order.id}')"
 style="margin-top:12px;background:#35543d;">
 Заказ выполнен
 </button>
 `
 : `
-<button 
+<button
 disabled
-style="margin-top:12px;background:#4a2d2d;opacity:.6;cursor:not-allowed;">
+style="margin-top:12px;background:#4a2d2d;opacity:.6;">
 Не хватает товаров
 </button>
 `
@@ -932,6 +1077,9 @@ renderGrowth();
 renderInventory();
 renderOrders();
 renderLogs();
+renderHistory();
+
+setTimeout(renderHistory,300);
 
 }catch(e){
 console.error(e);
@@ -964,6 +1112,9 @@ renderGrowth();
 renderInventory();
 renderOrders();
 renderLogs();
+renderHistory();
+
+setTimeout(renderHistory,300);
 }
 
 })
