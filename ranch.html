@@ -425,17 +425,21 @@ ${seed.name}
 ${seed.spoils?'Портится':'Не портится'}
 </div>
 
+<div style="display:flex;gap:8px;align-items:center;margin-top:12px;">
+
 <input 
 id="seed-${seed.name}"
 type="number"
-placeholder="Количество"
-style="width:100%;margin-top:12px;">
+placeholder="Кол-во"
+style="width:110px;">
 
 <button 
 onclick="plantSeed('${seed.name}')"
-style="width:100%;margin-top:8px;">
+style="flex:none;">
 Посадить
 </button>
+
+</div>
 `;
 
 root.appendChild(card);
