@@ -133,7 +133,14 @@ grid-template-columns:1fr;
 <button class="tab-btn active" onclick="openTab('seeds',this)">Семена</button>
 <button class="tab-btn" onclick="openTab('grow',this)">Рост</button>
 <button class="tab-btn" onclick="openTab('inventory',this)">Склад</button>
+<button class="tab-btn" onclick="openTab('orders',this)">Заказы</button>
 <button class="tab-btn" onclick="openTab('logs',this)">Лог</button>
+
+<div style="margin-left:auto;">
+<button class="tab-btn" onclick="logout()">
+Выйти
+</button>
+</div>
 </div>
 
 <div class="wrapper">
@@ -164,6 +171,18 @@ grid-template-columns:1fr;
 <div id="inventory" class="tab-section" style="display:none;">
 <div class="section-title">Склад</div>
 <div id="inventory-list"></div>
+</div>
+
+
+<div id="orders" class="tab-section" style="display:none;">
+<div class="section-title">Заказы</div>
+
+<button onclick="createOrder()" style="margin-bottom:18px;">
++ Новый заказ
+</button>
+
+<div id="orders-list"></div>
+
 </div>
 
 <div id="logs" class="tab-section" style="display:none;">
@@ -203,7 +222,8 @@ const seeds=[
 let state={
 plants:[],
 inventory:{},
-logs:[]
+logs:[],
+orders:[]
 };
 
 function openTab(id,el){
@@ -254,6 +274,7 @@ state=data.data;
 if(!state.plants) state.plants=[];
 if(!state.inventory) state.inventory={};
 if(!state.logs) state.logs=[];
+if(!state.orders) state.orders=[];
 
 renderAll();
 }
@@ -286,6 +307,15 @@ expires:Date.now()+(1000*60*60*24*30)
 
 document.getElementById('auth').style.display='none';
 }
+
+
+function logout(){
+
+localStorage.removeItem('ranch_auth');
+
+location.reload();
+}
+
 
 function checkAuth(){
 
@@ -406,6 +436,10 @@ const minutes=Math.floor(remaining/1000/60);
 const seconds=Math.floor((remaining/1000)%60);
 
 card.innerHTML=`
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+
+<div>
 <div style="font-size:18px;color:#f0d9a1;">
 ${plant.name}
 </div>
@@ -417,6 +451,15 @@ ${plant.name}
 <div style="margin-top:8px;">
 Осталось: ${minutes}:${String(seconds).padStart(2,'0')}
 </div>
+</div>
+
+<button 
+onclick="removeGrowingPlant('${plant.id}')"
+style="padding:2px 7px;font-size:11px;line-height:1;">
+✕
+</button>
+
+</div>
 `;
 
 growing.appendChild(card);
@@ -424,6 +467,23 @@ growing.appendChild(card);
 
 });
 }
+
+
+async function removeGrowingPlant(id){
+
+const plant=state.plants.find(p=>p.id==id);
+
+if(!plant) return;
+
+addLog(`${currentUser} удалил посадку ${plant.name}`);
+
+state.plants=state.plants.filter(p=>p.id!=id);
+
+renderAll();
+
+await saveState();
+}
+
 
 async function collect(id){
 
@@ -475,6 +535,199 @@ root.appendChild(card);
 });
 }
 
+
+function createOrder(){
+
+if(!Array.isArray(state.orders)){
+state.orders=[];
+}
+
+state.orders.push({
+id:Date.now()+Math.random(),
+client:'',
+dueDate:'',
+createdBy:currentUser,
+items:[]
+});
+
+renderOrders();
+saveState();
+}
+
+function addOrderItem(orderId,herb){
+
+const order=state.orders.find(o=>o.id===orderId);
+
+if(!order) return;
+
+const input=document.getElementById(`order-${orderId}-${herb}`);
+
+const amount=parseInt(input.value)||0;
+
+if(amount<=0) return;
+
+const existing=order.items.find(i=>i.name===herb);
+
+if(existing){
+existing.amount=amount;
+}else{
+order.items.push({
+name:herb,
+amount
+});
+}
+
+renderOrders();
+saveState();
+}
+
+function renderOrders(){
+
+const root=document.getElementById('orders-list');
+
+if(!root) return;
+
+root.innerHTML='';
+
+state.orders.forEach(order=>{
+
+const card=document.createElement('div');
+
+card.className='card';
+
+const left=seeds.map(seed=>{
+
+return `
+<div style="display:flex;gap:6px;margin-bottom:6px;">
+<input 
+id="order-${order.id}-${seed.name}"
+type="number"
+placeholder="${seed.name}"
+style="flex:1;">
+
+<button onclick="addOrderItem('${order.id}','${seed.name}')">
+Добавить
+</button>
+</div>
+`;
+
+}).join('');
+
+const right=order.items.map(item=>{
+
+const stock=state.inventory[item.name]||0;
+
+const enough=stock>=item.amount;
+
+const seedInfo=seeds.find(s=>s.name===item.name);
+
+const missing=Math.max(0,item.amount-stock);
+
+const needSeeds=seedInfo
+? Math.ceil(missing/seedInfo.yield)
+: 0;
+
+return `
+<div style="
+padding:8px;
+border:1px solid #5a3c24;
+border-radius:8px;
+margin-bottom:8px;
+background:${enough?'rgba(40,90,40,.25)':'rgba(90,40,40,.25)'};
+">
+
+<div style="font-size:16px;color:#f0d9a1;">
+${item.name} x${item.amount}
+</div>
+
+<div class="small">
+На складе: ${stock}
+</div>
+
+${!enough ? `
+<div class="red small">
+Не хватает: ${missing}
+<br>
+Нужно семян: ${needSeeds}
+</div>
+` : `
+<div class="green small">
+Достаточно
+</div>
+`}
+</div>
+`;
+
+}).join('');
+
+card.innerHTML=`
+<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px;">
+
+<div style="flex:1;">
+<input 
+placeholder="Имя клиента"
+value="${order.client}"
+oninput="updateOrderClient('${order.id}',this.value)"
+style="width:100%;margin-bottom:8px;">
+
+<input 
+type="date"
+value="${order.dueDate}"
+oninput="updateOrderDate('${order.id}',this.value)"
+style="width:100%;">
+
+<div class="small" style="margin-top:8px;">
+Оформил: ${order.createdBy}
+</div>
+</div>
+
+<button onclick="removeOrder('${order.id}')">
+✕
+</button>
+
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+
+<div>
+<h3>Добавить травы</h3>
+${left}
+</div>
+
+<div>
+<h3>Заказ</h3>
+${right || '<div class="small">Пусто</div>'}
+</div>
+
+</div>
+`;
+
+root.appendChild(card);
+
+});
+}
+
+function updateOrderClient(id,value){
+const order=state.orders.find(o=>o.id==id);
+if(!order) return;
+order.client=value;
+saveState();
+}
+
+function updateOrderDate(id,value){
+const order=state.orders.find(o=>o.id==id);
+if(!order) return;
+order.dueDate=value;
+saveState();
+}
+
+function removeOrder(id){
+state.orders=state.orders.filter(o=>o.id!=id);
+renderOrders();
+saveState();
+}
+
+
 function renderLogs(){
 
 const root=document.getElementById('logs-list');
@@ -508,6 +761,7 @@ function renderAll(){
 renderSeeds();
 renderGrowth();
 renderInventory();
+renderOrders();
 renderLogs();
 }
 
