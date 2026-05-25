@@ -126,7 +126,7 @@ grid-template-columns:1fr;
 </div>
 
 <div class="tabs">
-<button class="tab-btn active" onclick="openTab('seeds',this)">Семена</button>
+<button class="tab-btn active" onclick="openTab('seeds',this)">Промысел</button>
 <button class="tab-btn" onclick="openTab('growth',this)">Рост</button>
 <button class="tab-btn" onclick="openTab('inventory',this)">Склад</button>
 <button class="tab-btn" onclick="openTab('orders',this)">Заказы</button>
@@ -141,7 +141,7 @@ grid-template-columns:1fr;
 
 <div id="seeds" class="tab-section">
 
-<div class="section-title">Семена</div>
+<div class="section-title">Промысел</div>
 
 <input id="seed-search" placeholder="Поиск..." style="width:100%;margin-bottom:18px;" oninput="renderSeeds()">
 
@@ -173,9 +173,19 @@ grid-template-columns:1fr;
 
 <div id="inventory" class="tab-section" style="display:none;">
 
-<div class="section-title">Склад</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+
+<div class="section-title" style="margin:0;">Склад</div>
+
+<button onclick="toggleInventoryAdd()">
+Добавить
+</button>
+
+</div>
 
 <input id="inventory-search" placeholder="Поиск..." style="width:100%;margin-bottom:18px;" oninput="renderInventory()">
+
+<div id="inventory-add" style="display:none;margin-bottom:18px;"></div>
 
 <div id="inventory-list"></div>
 
@@ -224,42 +234,50 @@ let isCollecting=false;
 const seeds=[
 {name:'Агава',yield:5,growMinutes:225,business:'Алкоголь',spoils:false},
 {name:'Алоэ',yield:5,growMinutes:255,business:'Алкоголь',spoils:false},
-{name:'Американский женьшень',yield:5,growMinutes:180,business:'Медицина',spoils:false},
 {name:'Аляскинский женьшень',yield:5,growMinutes:180,business:'Медицина',spoils:false},
 {name:'Английская булава',yield:5,growMinutes:180,business:'Медицина',spoils:false},
-{name:'Брокколи',yield:5,growMinutes:180,business:'Еда',spoils:true},
+{name:'Американский женьшень',yield:5,growMinutes:180,business:'Медицина',spoils:false},
+{name:'Баранина',yield:1,growMinutes:180,business:'Еда',spoils:true},
+{name:'Виноград',yield:5,growMinutes:180,business:'Алкоголь',spoils:true},
+{name:'Говядина',yield:1,growMinutes:180,business:'Еда',spoils:true},
 {name:'Гриб-зонтик',yield:5,growMinutes:180,business:'Еда',spoils:false},
-{name:'Дикая морковь',yield:5,growMinutes:180,business:'Еда',spoils:false},
+{name:'Груша',yield:5,growMinutes:180,business:'Еда',spoils:true},
 {name:'Дикая мята',yield:5,growMinutes:150,business:'Алкоголь',spoils:false},
 {name:'Дикий чеснок',yield:5,growMinutes:180,business:'Еда',spoils:false},
+{name:'Дикая морковь',yield:5,growMinutes:180,business:'Еда',spoils:false},
 {name:'Душица',yield:5,growMinutes:180,business:'Еда',spoils:false},
-{name:'Зимнезеленая ягода',yield:5,growMinutes:180,business:'Алкоголь',spoils:true},
-{name:'Индийский табак',yield:5,growMinutes:180,business:'Табак',spoils:false},
+{name:'Зимняя Ягода',yield:5,growMinutes:180,business:'Алкоголь',spoils:true},
 {name:'Каннабис',yield:5,growMinutes:180,business:'Табак',spoils:false},
 {name:'Капуста',yield:5,growMinutes:180,business:'Еда',spoils:true},
 {name:'Картофель',yield:5,growMinutes:180,business:'Еда',spoils:true},
-{name:'Коки',yield:5,growMinutes:180,business:'Алкоголь',spoils:false},
-{name:'Красная малина',yield:5,growMinutes:120,business:'Алкоголь',spoils:true},
+{name:'Красная Малина',yield:5,growMinutes:120,business:'Алкоголь',spoils:true},
+{name:'Листья Коки',yield:5,growMinutes:180,business:'Алкоголь',spoils:false},
 {name:'Красный шалфей',yield:5,growMinutes:180,business:'Медицина',spoils:false},
 {name:'Кровавый цветок',yield:5,growMinutes:180,business:'Алкоголь',spoils:false},
 {name:'Кукуруза',yield:6,growMinutes:225,business:'Еда',spoils:true},
+{name:'Перийный Мак',yield:5,growMinutes:210,business:'Медицина',spoils:false},
 {name:'Молочай',yield:5,growMinutes:180,business:'Медицина',spoils:false},
 {name:'Олеандровый шалфей',yield:5,growMinutes:180,business:'Алкоголь',spoils:false},
-{name:'Прерийный мак',yield:5,growMinutes:210,business:'Медицина',spoils:false},
+{name:'Персик',yield:5,growMinutes:180,business:'Еда',spoils:true},
+{name:'Ползучая слива',yield:5,growMinutes:180,business:'Алкоголь',spoils:true},
+{name:'Ползучий Тимьян',yield:5,growMinutes:180,business:'Еда',spoils:false},
 {name:'Пшеница',yield:5,growMinutes:180,business:'Еда',spoils:false},
 {name:'Редис',yield:5,growMinutes:180,business:'Еда',spoils:true},
 {name:'Рис',yield:5,growMinutes:180,business:'Еда',spoils:false},
-{name:'Сахарный тростник',yield:4,growMinutes:240,business:'Алкоголь',spoils:false},
-{name:'Слива ползучая',yield:5,growMinutes:180,business:'Алкоголь',spoils:true},
-{name:'Тимьян ползучий',yield:5,growMinutes:180,business:'Еда',spoils:false},
+{name:'Сахар',yield:5,growMinutes:180,business:'Еда',spoils:false},
+{name:'Табак',yield:5,growMinutes:180,business:'Табак',spoils:false},
 {name:'Томат',yield:5,growMinutes:180,business:'Еда',spoils:true},
+{name:'Тростник',yield:4,growMinutes:240,business:'Алкоголь',spoils:false},
 {name:'Тысячелистник',yield:5,growMinutes:195,business:'Медицина',spoils:false},
 {name:'Хлопок',yield:4,growMinutes:225,business:'Ткань',spoils:false},
 {name:'Хмель',yield:5,growMinutes:180,business:'Алкоголь',spoils:false},
 {name:'Черная смородина',yield:5,growMinutes:180,business:'Алкоголь',spoils:true},
 {name:'Черника',yield:5,growMinutes:120,business:'Алкоголь',spoils:true},
 {name:'Чок Дейзи',yield:5,growMinutes:180,business:'Медицина',spoils:false},
-{name:'Шпинат',yield:5,growMinutes:180,business:'Еда',spoils:true}
+{name:'Шпинат',yield:5,growMinutes:180,business:'Еда',spoils:true},
+{name:'Яблоко',yield:5,growMinutes:180,business:'Еда',spoils:true},
+{name:'Яйца',yield:1,growMinutes:180,business:'Еда',spoils:true},
+{name:'Мед',yield:1,growMinutes:180,business:'Еда',spoils:false}
 ].sort((a,b)=>a.name.localeCompare(b.name,'ru'));
 
 let state={
@@ -980,6 +998,78 @@ root.appendChild(card);
 });
 
 }
+
+
+function toggleInventoryAdd(){
+
+const block=document.getElementById('inventory-add');
+
+if(block.style.display==='none'){
+block.style.display='block';
+renderInventoryAdd();
+}else{
+block.style.display='none';
+}
+}
+
+function renderInventoryAdd(){
+
+const root=document.getElementById('inventory-add');
+
+root.innerHTML='';
+
+const wrap=document.createElement('div');
+
+wrap.className='card';
+
+wrap.innerHTML=seeds.map(seed=>{
+
+return `
+<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+
+<div style="flex:1;">
+${seed.name}
+</div>
+
+<input 
+id="manual-${seed.name}"
+type="number"
+placeholder="Кол-во"
+style="width:90px;">
+
+<button onclick="saveInventoryItem('${seed.name}')">
+Сохранить
+</button>
+
+</div>
+`;
+
+}).join('');
+
+root.appendChild(wrap);
+}
+
+function saveInventoryItem(name){
+
+const input=document.getElementById(`manual-${name}`);
+
+const amount=parseInt(input.value)||0;
+
+if(amount<=0) return;
+
+if(!state.inventory[name]){
+state.inventory[name]=0;
+}
+
+state.inventory[name]+=amount;
+
+addLog(`${currentUser} добавил на склад ${name} x${amount}`);
+
+renderInventory();
+
+queueSave();
+}
+
 
 function renderLogs(){
 
