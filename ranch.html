@@ -117,7 +117,7 @@ grid-template-columns:1fr;
 <div class="auth-box">
 <div class="section-title">Emerald Ranch</div>
 
-<input id="password" type="password" placeholder="Пароль" style="width:100%;margin-bottom:12px;">
+<input id="password" type="password" placeholder="Пароль" style="width:220px;margin-bottom:12px;">
 
 <button onclick="login()" style="width:100%;">Войти</button>
 
@@ -505,6 +505,10 @@ ${plant.name}
 <div class="small">
 Посадил: ${plant.plantedBy}
 </div>
+
+<div class="small">
+Семян: x${plant.amount}
+</div>
 </div>
 
 <button onclick="collectPlant('${plant.id}')">
@@ -531,6 +535,10 @@ ${plant.name}
 
 <div class="small">
 Посадил: ${plant.plantedBy}
+</div>
+
+<div class="small">
+Семян: x${plant.amount}
 </div>
 
 <div style="margin-top:8px;">
@@ -887,13 +895,17 @@ style="width:100%;margin-bottom:10px;">
 
 <div style="display:flex;gap:8px;align-items:center;">
 
+<div class="small" style="min-width:95px;">
+Доставка на
+</div>
+
 <input 
-placeholder="Дата dd/mm/yyyy"
+placeholder="dd/mm/yyyy"
 value="${order.dueDate}"
 oninput="updateOrderDate('${order.id}',this.value)"
 style="flex:1;">
 
-<div class="small">или</div>
+<div class="small">или через</div>
 
 <input 
 type="number"
@@ -929,7 +941,9 @@ ${order.status==='editing'
 <div style="display:flex;gap:6px;">
 
 ${order.status!=='completed'
-? `<button onclick="toggleOrderEdit('${order.id}')">
+? `<button 
+onclick="toggleOrderEdit('${order.id}')"
+style="background:#5b3a1f;position:relative;top:-2px;">
 ${order.status==='editing'?'Оформить':'Редактировать'}
 </button>`
 : ''}
@@ -984,7 +998,7 @@ card.innerHTML=`
 ${new Date(log.createdAt).toLocaleString('ru-RU')}
 </div>
 
-<div style="margin-top:8px;">
+<div style="margin-top:6px;font-size:12px;">
 ${log.text}
 </div>
 `;
