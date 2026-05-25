@@ -250,10 +250,35 @@ seeds.filter(x=>x.toLowerCase().includes(s)).forEach(seed=>{
 const card=document.createElement('div');
 card.className='card';
 card.innerHTML=`
-<div>${seed}</div>
+
+<div style="font-size:18px;color:#dfe7f2;margin-bottom:8px;">
+${seed}
+</div>
+
+<div class="small">
+Рост: 60 мин
+</div>
+
+<div class="small">
+Урожай: x5
+</div>
+
+<div class="small">
+Промысел
+</div>
+
 <div style="display:flex;gap:8px;margin-top:10px">
-<input id="seed-${seed}" type="number" placeholder="Кол-во" style="width:90px">
-<button onclick="plant('${seed}')">Посадить</button>
+
+<input 
+id="seed-${seed}" 
+type="number" 
+placeholder="Кол-во" 
+style="width:90px">
+
+<button onclick="plant('${seed}')">
+Посадить
+</button>
+
 </div>`;
 root.appendChild(card);
 });
@@ -680,6 +705,14 @@ ${left}
 
 ${right}
 
+${order.items.length>0?`
+<button 
+onclick="completeOrder(${order.id})"
+style="margin-top:12px;background:#35543d;">
+Заказ выполнен
+</button>
+`:''}
+
 </div>
 
 </div>
@@ -737,6 +770,37 @@ renderOrders();
 queueSave();
 }
 
+
+function completeOrder(id){
+
+const order=state.orders.find(o=>o.id===id);
+
+if(!order)return;
+
+order.items.forEach(item=>{
+
+if(state.inventory[item.name]!==undefined){
+
+state.inventory[item.name]=Math.max(
+0,
+state.inventory[item.name]-item.amount
+);
+
+}
+
+});
+
+addLog(`${currentUser} выполнил заказ`);
+
+state.orders=state.orders.filter(o=>o.id!==id);
+
+renderOrders();
+renderInventory();
+
+queueSave();
+}
+
+
 function renderLogs(){
 const root=document.getElementById('logs-list');
 root.innerHTML='';
@@ -775,6 +839,13 @@ if(!state.plants) state.plants=[];
 if(!state.inventory) state.inventory={};
 if(!state.orders) state.orders=[];
 if(!state.logs) state.logs=[];
+
+
+seeds.forEach(seed=>{
+if(state.inventory[seed]===undefined){
+state.inventory[seed]=0;
+}
+});
 
 renderSeeds();
 renderGrowth();
