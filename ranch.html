@@ -336,11 +336,23 @@ data:state
 
 function login(){
 
-const pass=document.getElementById('password').value;
+const pass=document.getElementById('password').value.trim();
 
 if(!USERS[pass]){
 document.getElementById('auth-error').innerHTML='Неверный пароль';
 return;
+}
+
+currentUser=USERS[pass];
+
+localStorage.setItem('ranch_auth',JSON.stringify({
+name:currentUser,
+expires:Date.now()+(1000*60*60*24*30)
+}));
+
+document.getElementById('auth').style.display='none';
+
+renderAll();
 }
 
 currentUser=USERS[pass];
@@ -368,11 +380,18 @@ const saved=localStorage.getItem('ranch_auth');
 
 if(!saved) return;
 
+try{
+
 const data=JSON.parse(saved);
 
 if(data.expires>Date.now()){
 currentUser=data.name;
 document.getElementById('auth').style.display='none';
+}
+
+}catch(e){
+localStorage.removeItem('ranch_auth');
+}
 }
 }
 
