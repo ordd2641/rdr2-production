@@ -197,6 +197,13 @@ const USERS={
 'victory':'Викторя Хельман'
 };
 
+
+const HARVEST_YIELD = {
+'Кукуруза':6,
+'Хлопок':4,
+'Тростник':4
+};
+
 const GROWTH_TIMES = {"Хлопок": 225, "Томат": 195, "Брокколи": 240, "Агава": 225, "Капуста": 180, "Алоэ": 260, "Рис": 150, "Шпинат": 210, "Редис": 180, "Картофель": 180, "Душица": 210, "Каннабис": 180, "Аляскинский женьшень": 150, "Листья Коки": 180, "Американский женьшень": 150, "Хмель": 180, "Черника": 195, "Черная смородина": 195, "Чок Дейзи": 210, "Кровавый цветок": 180, "Кукуруза": 225, "Ползучая слива": 240, "Ползучий Тимьян": 180, "Дикий чеснок": 150, "Олеандровый шалфей": 210};
 
 const seeds=[
@@ -475,17 +482,40 @@ growing.appendChild(card);
 }
 
 
+
 function collect(id){
-const plant=state.plants.find(x=>x.id===id);
+
+const plant=state.plants.find(
+x=>String(x.id)===String(id)
+);
+
 if(!plant)return;
-state.inventory[plant.name]=(state.inventory[plant.name]||0)+(plant.amount*5);
-state.plants=state.plants.filter(x=>String(x.id)!==String(id));
+
 pushHistory(`Сбор ${plant.name}`);
-addLog(`${currentUser} собрал ${plant.name}`);
+
+const harvest=HARVEST_YIELD[plant.name]||5;
+
+const total=plant.amount*harvest;
+
+if(state.inventory[plant.name]===undefined){
+state.inventory[plant.name]=0;
+}
+
+state.inventory[plant.name]+=total;
+
+state.plants=state.plants.filter(
+x=>String(x.id)!==String(id)
+);
+
+addLog(`${currentUser} собрал ${plant.name} x${total}`);
+
 renderGrowth();
 renderInventory();
+
 queueSave();
+
 }
+
 
 function toggleAdd(){
 const el=document.getElementById('inventory-add');
