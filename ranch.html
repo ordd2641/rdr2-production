@@ -4,422 +4,130 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Emerald Ranch</title>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <style>
-body{
-margin:0;
-background:#0f0907;
-color:#f3e7c9;
-font-family:Arial,sans-serif;
-}
-
-.tabs{
-position:sticky;
-top:0;
-display:flex;
-gap:8px;
-padding:12px;
-background:#120b08;
-border-bottom:1px solid #5a3c24;
-z-index:9999;
-flex-wrap:wrap;
-}
-
-.tab-btn{
-padding:10px 14px;
-background:#2c1d15;
-border:1px solid #5a3c24;
-color:#f3e7c9;
-border-radius:8px;
-cursor:pointer;
-}
-
-.tab-btn.active{
-background:#4a2d1a;
-}
-
-.wrapper{
-padding:18px;
-}
-
-.grid{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-gap:14px;
-}
-
-.card{
-background:#1b130f;
-border:1px solid #5a3c24;
-border-radius:12px;
-padding:14px;
-}
-
-input,button{
-padding:8px;
-border-radius:8px;
-border:1px solid #5a3c24;
-background:#140e0b;
-color:#f3e7c9;
-}
-
-button{cursor:pointer;}
-
-.small{
-font-size:11px;
-color:#b79d77;
-}
-
-.green{color:#86d986;}
-.red{color:#ff7f7f;}
-
-.auth{
-position:fixed;
-inset:0;
-display:flex;
-align-items:center;
-justify-content:center;
-background:#0a0604;
-z-index:999999;
-}
-
-.auth-box{
-width:320px;
-padding:24px;
-background:#1b130f;
-border:1px solid #5a3c24;
-border-radius:12px;
-}
-
-.section-title{
-font-size:24px;
-margin-bottom:16px;
-}
-
-.two{
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:18px;
-}
-
-@media(max-width:900px){
-.two{
-grid-template-columns:1fr;
-}
-}
+body{margin:0;background:#0f0907;color:#f3e7c9;font-family:Arial}
+.tabs{position:sticky;top:0;display:flex;gap:8px;padding:12px;background:#120b08;border-bottom:1px solid #5a3c24;z-index:99}
+.tab-btn{padding:10px 14px;background:#2c1d15;border:1px solid #5a3c24;color:#f3e7c9;border-radius:8px;cursor:pointer}
+.wrapper{padding:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.card{background:#1b130f;border:1px solid #5a3c24;border-radius:12px;padding:12px}
+input,button{padding:8px;border-radius:8px;border:1px solid #5a3c24;background:#140e0b;color:#f3e7c9}
+button{cursor:pointer}
+.small{font-size:11px;color:#b79d77}
+.auth{position:fixed;inset:0;background:#0a0604;display:flex;align-items:center;justify-content:center;z-index:9999}
+.auth-box{background:#1b130f;border:1px solid #5a3c24;border-radius:12px;padding:24px;width:320px}
 </style>
 </head>
 <body>
 
 <div id="auth" class="auth">
 <div class="auth-box">
-<div class="section-title">Emerald Ranch</div>
-
-<input id="password" type="password" placeholder="Пароль" style="width:220px;margin-bottom:12px;">
-
-<button onclick="login()" style="width:100%;">Войти</button>
-
-<div id="auth-error" class="red small" style="margin-top:10px;"></div>
+<h2>Emerald Ranch</h2>
+<input id="password" type="password" placeholder="Пароль" style="width:220px">
+<button onclick="login()">Войти</button>
+<div id="auth-error" style="color:#ff7f7f;margin-top:8px"></div>
 </div>
 </div>
 
 <div class="tabs">
-<button class="tab-btn active" onclick="openTab('seeds',this)">Промысел</button>
-<button class="tab-btn" onclick="openTab('growth',this)">Рост</button>
-<button class="tab-btn" onclick="openTab('inventory',this)">Склад</button>
-<button class="tab-btn" onclick="openTab('orders',this)">Заказы</button>
-<button class="tab-btn" onclick="openTab('logs',this)">Лог</button>
-
-<div style="margin-left:auto;">
+<button class="tab-btn" onclick="showTab('promisel')">Промысел</button>
+<button class="tab-btn" onclick="showTab('growth')">Рост</button>
+<button class="tab-btn" onclick="showTab('inventory')">Склад</button>
+<button class="tab-btn" onclick="showTab('orders')">Заказы</button>
+<button class="tab-btn" onclick="showTab('logs')">Лог</button>
+<div style="margin-left:auto">
 <button class="tab-btn" onclick="logout()">Выйти</button>
 </div>
 </div>
 
 <div class="wrapper">
 
-<div id="seeds" class="tab-section">
-
-<div class="section-title">Промысел</div>
-
-<input id="seed-search" placeholder="Поиск..." style="width:100%;margin-bottom:18px;" oninput="renderSeeds()">
-
+<div id="promisel" class="tab">
+<input id="seed-search" placeholder="Поиск..." oninput="renderSeeds()" style="width:100%;margin-bottom:12px">
 <div id="seed-list" class="grid"></div>
-
 </div>
 
-<div id="growth" class="tab-section" style="display:none;">
-
-<div class="section-title">Рост</div>
-
-<input id="growth-search" placeholder="Поиск..." style="width:100%;margin-bottom:18px;" oninput="renderGrowth()">
-
-<div class="two">
-
+<div id="growth" class="tab" style="display:none">
+<input id="growth-search" placeholder="Поиск..." oninput="renderGrowth()" style="width:100%;margin-bottom:12px">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
 <div>
 <h3>В процессе роста</h3>
 <div id="growing-list"></div>
 </div>
-
 <div>
 <h3>Готово к сбору</h3>
 <div id="ready-list"></div>
 </div>
-
+</div>
 </div>
 
+<div id="inventory" class="tab" style="display:none">
+<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+<h2 style="margin:0">Склад</h2>
+<button onclick="toggleAdd()">Добавить</button>
+</div>
+<div id="inventory-add" style="display:none"></div>
+<input id="inventory-search" placeholder="Поиск..." oninput="renderInventory()" style="width:100%;margin-bottom:12px">
+<div id="inventory-list" class="grid"></div>
 </div>
 
-<div id="inventory" class="tab-section" style="display:none;">
-
-<div style="display:flex;justify-content:flex-start;align-items:center;gap:12px;margin-bottom:16px;">
-
-<div class="section-title" style="margin:0;">Склад</div>
-
-<button onclick="toggleInventoryAdd()">
-Добавить
-</button>
-
-</div>
-
-<input id="inventory-search" placeholder="Поиск..." style="width:100%;margin-bottom:18px;" oninput="renderInventory()">
-
-<div id="inventory-add" style="display:none;margin-bottom:18px;"></div>
-
-<div id="inventory-list"></div>
-
-</div>
-
-<div id="orders" class="tab-section" style="display:none;">
-
-<div class="section-title">Заказы</div>
-
-<button onclick="createOrder()" style="margin-bottom:18px;">
-+ Новый заказ
-</button>
-
+<div id="orders" class="tab" style="display:none">
+<button onclick="createOrder()">+ Новый заказ</button>
 <div id="orders-list"></div>
-
 </div>
 
-<div id="logs" class="tab-section" style="display:none;">
-
-<div class="section-title">Лог</div>
-
+<div id="logs" class="tab" style="display:none">
 <div id="logs-list"></div>
-
 </div>
 
 </div>
 
 <script>
-
 const SUPABASE_URL='https://cypspnueblwlwqmkwxvr.supabase.co';
-
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5cHNwbnVlYmx3bHdxbWt3eHZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTkxOTMsImV4cCI6MjA5NDczNTE5M30.wycI0cLxAB0-Exl4TAY7TJ16ZPO_tNBFPLKB6a_voNU';
-
 const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-const USERS={
-'1111':'Игрок 1',
-'2222':'Игрок 2',
-'3333':'Игрок 3'
-};
-
-let currentUser='';
-let saveTimeout=null;
-let isCollecting=false;
+const USERS={'1111':'Игрок 1','2222':'Игрок 2','3333':'Игрок 3'};
 
 const seeds=[
-{name:'Агава',yield:5,growMinutes:225,business:'Алкоголь',spoils:false},
-{name:'Алоэ',yield:5,growMinutes:255,business:'Алкоголь',spoils:false},
-{name:'Аляскинский женьшень',yield:5,growMinutes:180,business:'Медицина',spoils:false},
-{name:'Английская булава',yield:5,growMinutes:180,business:'Медицина',spoils:false},
-{name:'Американский женьшень',yield:5,growMinutes:180,business:'Медицина',spoils:false},
-{name:'Баранина',yield:1,growMinutes:180,business:'Еда',spoils:true},
-{name:'Виноград',yield:5,growMinutes:180,business:'Алкоголь',spoils:true},
-{name:'Говядина',yield:1,growMinutes:180,business:'Еда',spoils:true},
-{name:'Гриб-зонтик',yield:5,growMinutes:180,business:'Еда',spoils:false},
-{name:'Груша',yield:5,growMinutes:180,business:'Еда',spoils:true},
-{name:'Дикая мята',yield:5,growMinutes:150,business:'Алкоголь',spoils:false},
-{name:'Дикий чеснок',yield:5,growMinutes:180,business:'Еда',spoils:false},
-{name:'Дикая морковь',yield:5,growMinutes:180,business:'Еда',spoils:false},
-{name:'Душица',yield:5,growMinutes:180,business:'Еда',spoils:false},
-{name:'Зимняя Ягода',yield:5,growMinutes:180,business:'Алкоголь',spoils:true},
-{name:'Каннабис',yield:5,growMinutes:180,business:'Табак',spoils:false},
-{name:'Капуста',yield:5,growMinutes:180,business:'Еда',spoils:true},
-{name:'Картофель',yield:5,growMinutes:180,business:'Еда',spoils:true},
-{name:'Красная Малина',yield:5,growMinutes:120,business:'Алкоголь',spoils:true},
-{name:'Листья Коки',yield:5,growMinutes:180,business:'Алкоголь',spoils:false},
-{name:'Красный шалфей',yield:5,growMinutes:180,business:'Медицина',spoils:false},
-{name:'Кровавый цветок',yield:5,growMinutes:180,business:'Алкоголь',spoils:false},
-{name:'Кукуруза',yield:6,growMinutes:225,business:'Еда',spoils:true},
-{name:'Перийный Мак',yield:5,growMinutes:210,business:'Медицина',spoils:false},
-{name:'Молочай',yield:5,growMinutes:180,business:'Медицина',spoils:false},
-{name:'Олеандровый шалфей',yield:5,growMinutes:180,business:'Алкоголь',spoils:false},
-{name:'Персик',yield:5,growMinutes:180,business:'Еда',spoils:true},
-{name:'Ползучая слива',yield:5,growMinutes:180,business:'Алкоголь',spoils:true},
-{name:'Ползучий Тимьян',yield:5,growMinutes:180,business:'Еда',spoils:false},
-{name:'Пшеница',yield:5,growMinutes:180,business:'Еда',spoils:false},
-{name:'Редис',yield:5,growMinutes:180,business:'Еда',spoils:true},
-{name:'Рис',yield:5,growMinutes:180,business:'Еда',spoils:false},
-{name:'Сахар',yield:5,growMinutes:180,business:'Еда',spoils:false},
-{name:'Табак',yield:5,growMinutes:180,business:'Табак',spoils:false},
-{name:'Томат',yield:5,growMinutes:180,business:'Еда',spoils:true},
-{name:'Тростник',yield:4,growMinutes:240,business:'Алкоголь',spoils:false},
-{name:'Тысячелистник',yield:5,growMinutes:195,business:'Медицина',spoils:false},
-{name:'Хлопок',yield:4,growMinutes:225,business:'Ткань',spoils:false},
-{name:'Хмель',yield:5,growMinutes:180,business:'Алкоголь',spoils:false},
-{name:'Черная смородина',yield:5,growMinutes:180,business:'Алкоголь',spoils:true},
-{name:'Черника',yield:5,growMinutes:120,business:'Алкоголь',spoils:true},
-{name:'Чок Дейзи',yield:5,growMinutes:180,business:'Медицина',spoils:false},
-{name:'Шпинат',yield:5,growMinutes:180,business:'Еда',spoils:true},
-{name:'Яблоко',yield:5,growMinutes:180,business:'Еда',spoils:true},
-{name:'Яйца',yield:1,growMinutes:180,business:'Еда',spoils:true},
-{name:'Мед',yield:1,growMinutes:180,business:'Еда',spoils:false}
-].sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+'Агава','Алоэ','Аляскинский женьшень','Английская булава','Американский женьшень',
+'Баранина','Виноград','Говядина','Гриб-зонтик','Груша','Дикая мята','Душица',
+'Зимняя Ягода','Каннабис','Капуста','Ползучий Тимьян','Картофель','Красная Малина',
+'Листья Коки','Красный шалфей','Кровавый цветок','Кукуруза','Перийный Мак',
+'Дикая морковь','Молочай','Олеандровый шалфей','Персик','Пшеница','Редис','Рис',
+'Сахар','Табак','Томат','Тростник','Тысячелистник','Хмель','Хлопок',
+'Черная смородина','Ползучая слива','Черника','Дикий чеснок','Чок Дейзи',
+'Шпинат','Яблоко','Яйца','Мед'
+].sort((a,b)=>a.localeCompare(b,'ru'));
 
-let state={
-plants:[],
-inventory:{},
-orders:[],
-logs:[]
-};
-
-function queueSave(){
-clearTimeout(saveTimeout);
-saveTimeout=setTimeout(saveState,300);
-}
-
-async function saveState(){
-await supabaseClient
-.from('ranch_app')
-.update({data:state})
-.eq('id',1);
-}
-
-async function loadState(){
-
-const {data}=await supabaseClient
-.from('ranch_app')
-.select('*')
-.eq('id',1)
-.single();
-
-if(data && data.data){
-state=data.data;
-}
-
-if(!state.plants) state.plants=[];
-if(!state.inventory) state.inventory={};
-if(!state.orders) state.orders=[];
-if(!state.logs) state.logs=[];
-
-renderAll();
-}
-
-supabaseClient
-.channel('ranch-sync')
-.on('postgres_changes',{
-event:'UPDATE',
-schema:'public',
-table:'ranch_app'
-},payload=>{
-
-if(payload.new && payload.new.data){
-state=payload.new.data;
-
-if(!state.plants) state.plants=[];
-if(!state.inventory) state.inventory={};
-if(!state.orders) state.orders=[];
-if(!state.logs) state.logs=[];
-
-renderAll();
-}
-
-})
-.subscribe();
-
-
-function addLog(text){
-
-if(!Array.isArray(state.logs)){
-state.logs=[];
-}
-
-state.logs.unshift({
-text,
-createdAt:Date.now()
-});
-
-state.logs=state.logs.slice(0,100);
-
-renderLogs();
-
-queueSave();
-}
-);
-
-const limit=100;
-
-state.logs=state.logs.slice(0,limit);
-
-queueSave();
-}
-
-function openTab(id,el){
-
-document.querySelectorAll('.tab-section').forEach(s=>{
-s.style.display='none';
-});
-
-document.querySelectorAll('.tab-btn').forEach(b=>{
-b.classList.remove('active');
-});
-
-document.getElementById(id).style.display='block';
-
-if(el) el.classList.add('active');
-}
+let state={plants:[],inventory:{},orders:[],logs:[]};
+let currentUser='';
 
 function login(){
-
 const pass=document.getElementById('password').value.trim();
-
 if(!USERS[pass]){
-document.getElementById('auth-error').innerHTML='Неверный пароль';
+document.getElementById('auth-error').innerText='Неверный пароль';
 return;
 }
-
 currentUser=USERS[pass];
-
 localStorage.setItem('ranch_auth',JSON.stringify({
 name:currentUser,
-expires:Date.now()+(1000*60*60*24*30)
+expires:Date.now()+1000*60*60*24*30
 }));
-
 document.getElementById('auth').style.display='none';
 }
 
 function checkAuth(){
-
 const saved=localStorage.getItem('ranch_auth');
-
-if(!saved) return;
-
+if(!saved)return;
 try{
-
 const data=JSON.parse(saved);
-
 if(data.expires>Date.now()){
 currentUser=data.name;
 document.getElementById('auth').style.display='none';
 }
-
-}catch(e){
-localStorage.removeItem('ranch_auth');
-}
+}catch(e){}
 }
 
 function logout(){
@@ -427,343 +135,250 @@ localStorage.removeItem('ranch_auth');
 location.reload();
 }
 
+function showTab(id){
+document.querySelectorAll('.tab').forEach(t=>t.style.display='none');
+document.getElementById(id).style.display='block';
+}
+
+function addLog(text){
+state.logs.unshift({text,createdAt:Date.now()});
+state.logs=state.logs.slice(0,100);
+renderLogs();
+save();
+}
+
 function renderSeeds(){
-
 const root=document.getElementById('seed-list');
-
 root.innerHTML='';
+const s=document.getElementById('seed-search').value.toLowerCase();
 
-const search=(document.getElementById('seed-search').value||'').toLowerCase();
-
-seeds
-.filter(seed=>seed.name.toLowerCase().includes(search))
-.forEach(seed=>{
-
+seeds.filter(x=>x.toLowerCase().includes(s)).forEach(seed=>{
 const card=document.createElement('div');
-
 card.className='card';
-
 card.innerHTML=`
-<div style="font-size:20px;color:#f0d9a1;margin-bottom:10px;">
-${seed.name}
-</div>
-
-<div class="small">Урожай: x${seed.yield}</div>
-<div class="small">Рост: ${seed.growMinutes} мин</div>
-<div class="small">Бизнес: ${seed.business}</div>
-
-<div class="small ${seed.spoils?'red':'green'}">
-${seed.spoils?'Портится':'Не портится'}
-</div>
-
-<div style="display:flex;gap:8px;align-items:center;margin-top:12px;">
-
-<input 
-id="seed-${seed.name}"
-type="number"
-placeholder="Кол-во"
-style="width:110px;">
-
-<button 
-onclick="plantSeed('${seed.name}')"
-style="flex:none;">
-Посадить
-</button>
-
-</div>
-`;
-
+<div>${seed}</div>
+<div style="display:flex;gap:8px;margin-top:10px">
+<input id="seed-${seed}" type="number" placeholder="Кол-во" style="width:90px">
+<button onclick="plant('${seed}')">Посадить</button>
+</div>`;
 root.appendChild(card);
-
 });
 }
 
-function plantSeed(name){
-
-const seed=seeds.find(s=>s.name===name);
-
-const amount=parseInt(document.getElementById(`seed-${name}`).value)||0;
-
-if(amount<=0) return;
-
+function plant(seed){
+const amount=parseInt(document.getElementById(`seed-${seed}`).value)||0;
+if(amount<=0)return;
 state.plants.unshift({
-id:Date.now()+Math.random(),
-name,
+id:Date.now(),
+name:seed,
 amount,
-yield:seed.yield,
 plantedBy:currentUser,
-readyAt:Date.now()+(seed.growMinutes*60*1000)
+readyAt:Date.now()+3600000
 });
-
-addLog(`${currentUser} посадил ${name} x${amount}`);
-
-renderAll();
-
-queueSave();
+addLog(`${currentUser} посадил ${seed} x${amount}`);
+renderGrowth();
+save();
 }
 
 function renderGrowth(){
-
 const growing=document.getElementById('growing-list');
 const ready=document.getElementById('ready-list');
-
 growing.innerHTML='';
 ready.innerHTML='';
 
-const search=(document.getElementById('growth-search').value||'').toLowerCase();
+state.plants.forEach(p=>{
+const card=document.createElement('div');
+card.className='card';
 
-[...state.plants]
-.filter(p=>p.name.toLowerCase().includes(search))
-.sort((a,b)=>a.readyAt-b.readyAt)
-.forEach(plant=>{
+if(Date.now()>=p.readyAt){
+card.innerHTML=`
+<div>${p.name}</div>
+<div class="small">Семян: x${p.amount}</div>
+<div class="small">Готово: ${Math.floor((Date.now()-p.readyAt)/60000)} мин</div>
+<button onclick="collect(${p.id})">Собрал</button>`;
+ready.appendChild(card);
+}else{
+card.innerHTML=`
+<div>${p.name}</div>
+<div class="small">Семян: x${p.amount}</div>
+<div class="small">Посадил: ${p.plantedBy}</div>`;
+growing.appendChild(card);
+}
+});
+}
 
-const remaining=plant.readyAt-Date.now();
+function collect(id){
+const plant=state.plants.find(x=>x.id===id);
+if(!plant)return;
+state.inventory[plant.name]=(state.inventory[plant.name]||0)+(plant.amount*5);
+state.plants=state.plants.filter(x=>x.id!==id);
+addLog(`${currentUser} собрал ${plant.name}`);
+renderGrowth();
+renderInventory();
+save();
+}
+
+function toggleAdd(){
+const el=document.getElementById('inventory-add');
+el.style.display=el.style.display==='none'?'block':'none';
+renderAddInventory();
+}
+
+function renderAddInventory(){
+const root=document.getElementById('inventory-add');
+root.innerHTML='<div class="grid">'+seeds.map(seed=>`
+<div class="card">
+<div>${seed}</div>
+<div style="display:flex;gap:8px;margin-top:10px">
+<input id="manual-${seed}" type="number" style="width:90px">
+<button onclick="saveInventory('${seed}')">Сохранить</button>
+</div>
+</div>`).join('')+'</div>';
+}
+
+function saveInventory(name){
+const val=parseInt(document.getElementById(`manual-${name}`).value)||0;
+state.inventory[name]=(state.inventory[name]||0)+val;
+addLog(`${currentUser} добавил ${name} x${val}`);
+renderInventory();
+save();
+}
+
+function renderInventory(){
+const root=document.getElementById('inventory-list');
+root.innerHTML='';
+Object.entries(state.inventory).forEach(([name,val])=>{
+const card=document.createElement('div');
+card.className='card';
+card.innerHTML=`<div>${name}</div><div>Количество: ${val}</div>`;
+root.appendChild(card);
+});
+}
+
+function createOrder(){
+
+state.orders.unshift({
+id:Date.now(),
+client:'',
+createdBy:currentUser,
+items:[]
+});
+
+renderOrders();
+
+addLog(`${currentUser} создал заказ`);
+
+save();
+}
+
+function addOrderItem(orderId,name){
+
+const input=document.getElementById(`order-${orderId}-${name}`);
+
+const amount=parseInt(input.value)||0;
+
+if(amount<=0)return;
+
+const order=state.orders.find(o=>o.id===orderId);
+
+if(!order)return;
+
+const existing=order.items.find(i=>i.name===name);
+
+if(existing){
+existing.amount=amount;
+}else{
+order.items.push({name,amount});
+}
+
+renderOrders();
+
+save();
+}
+
+function renderOrders(){
+
+const root=document.getElementById('orders-list');
+
+root.innerHTML='';
+
+state.orders.forEach(order=>{
 
 const card=document.createElement('div');
 
 card.className='card';
 
-if(remaining<=0){
-
 card.innerHTML=`
-<div style="display:flex;justify-content:space-between;gap:8px;">
 
-<div>
-<div style="font-size:18px;color:#f0d9a1;">
-${plant.name}
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+
+<div style="max-width:320px;">
+
+<input 
+placeholder="Имя клиента"
+value="${order.client||''}"
+oninput="updateOrderClient(${order.id},this.value)"
+style="width:220px;">
+
+<div class="small" style="margin-top:8px;">
+Оформил: ${order.createdBy}
 </div>
 
-<div class="small">
-Посадил: ${plant.plantedBy}
 </div>
 
-<div class="small">
-Семян: x${plant.amount}
-</div>
-</div>
-
-<button onclick="collectPlant('${plant.id}')">
-Собрал
-</button>
-
-</div>
-`;
-
-ready.appendChild(card);
-
-}else{
-
-const minutes=Math.floor(remaining/1000/60);
-const seconds=Math.floor((remaining/1000)%60);
-
-card.innerHTML=`
-<div style="display:flex;justify-content:space-between;gap:8px;">
-
-<div>
-<div style="font-size:18px;color:#f0d9a1;">
-${plant.name}
-</div>
-
-<div class="small">
-Посадил: ${plant.plantedBy}
-</div>
-
-<div class="small">
-Семян: x${plant.amount}
-</div>
-
-<div style="margin-top:8px;">
-Осталось: ${minutes}:${String(seconds).padStart(2,'0')}
-</div>
-</div>
-
-<button onclick="removePlant('${plant.id}')">
+<button onclick="removeOrder(${order.id})">
 ✕
 </button>
 
 </div>
-`;
 
-growing.appendChild(card);
-
-}
-
-});
-
-}
-
-function removePlant(id){
-
-const plant=state.plants.find(p=>String(p.id)===String(id));
-
-if(!plant) return;
-
-state.plants=state.plants.filter(p=>String(p.id)!==String(id));
-
-addLog(`${currentUser} удалил посадку ${plant.name}`);
-
-renderAll();
-
-queueSave();
-}
-
-function collectPlant(id){
-
-if(isCollecting) return;
-
-isCollecting=true;
-
-const plant=state.plants.find(p=>String(p.id)===String(id));
-
-if(!plant){
-isCollecting=false;
-return;
-}
-
-const total=plant.amount*plant.yield;
-
-if(!state.inventory[plant.name]){
-state.inventory[plant.name]=0;
-}
-
-state.inventory[plant.name]+=total;
-
-state.plants=state.plants.filter(p=>String(p.id)!==String(id));
-
-addLog(`${currentUser} собрал ${plant.name} x${total}`);
-
-renderAll();
-
-queueSave();
-
-setTimeout(()=>{
-isCollecting=false;
-},500);
-}
-
-function renderInventory(){
-
-const root=document.getElementById('inventory-list');
-
-root.innerHTML='';
-
-const search=(document.getElementById('inventory-search').value||'').toLowerCase();
-
-const grid=document.createElement('div');
-
-grid.className='grid';
-
-Object.entries(state.inventory)
-.filter(([name])=>name.toLowerCase().includes(search))
-.sort((a,b)=>a[0].localeCompare(b[0],'ru'))
-.forEach(([name,amount])=>{
-
-const card=document.createElement('div');
-
-card.className='card';
-
-card.innerHTML=`
-
-<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
 
 <div>
 
-<div style="font-size:18px;color:#f0d9a1;">
-${name}
+<h3 style="margin-top:0;">Добавить травы</h3>
+
+${seeds.map(seed=>`
+<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+
+<div style="width:150px;font-size:13px;">
+${seed}
 </div>
-
-<div style="margin-top:8px;">
-Количество: ${amount}
-</div>
-
-</div>
-
-<button onclick="toggleEditInventory('${name}')">
-✎
-</button>
-
-</div>
-
-<div id="edit-${name}" style="display:none;margin-top:12px;">
-
-<div style="display:flex;gap:8px;align-items:center;">
-
-<button onclick="changeInventory('${name}',-1)">-</button>
 
 <input 
-id="edit-input-${name}"
-type="number"
-value="${amount}"
-style="width:70px;">
-
-<button onclick="changeInventory('${name}',1)">+</button>
-
-<button onclick="saveInventoryEdit('${name}')">
-Сохранить
-</button>
-
-</div>
-
-</div>
-`;
-
-grid.appendChild(card);
-
-});
-
-root.appendChild(grid);
-
-}
-
-
-function toggleInventoryAdd(){
-
-const block=document.getElementById('inventory-add');
-
-if(block.style.display==='none'){
-block.style.display='block';
-renderInventoryAdd();
-}else{
-block.style.display='none';
-}
-}
-
-function renderInventoryAdd(){
-
-const root=document.getElementById('inventory-add');
-
-root.innerHTML='';
-
-const wrap=document.createElement('div');
-
-wrap.className='card';
-
-wrap.style.maxWidth='1400px';
-
-wrap.innerHTML=`
-<div class="grid">
-
-${seeds.map(seed=>{
-
-return `
-<div class="card" style="padding:10px;">
-
-<div style="font-size:16px;color:#f0d9a1;margin-bottom:10px;">
-${seed.name}
-</div>
-
-<div style="display:flex;gap:8px;align-items:center;">
-
-<input 
-id="manual-${seed.name}"
+id="order-${order.id}-${seed}"
 type="number"
 placeholder="Кол-во"
-style="flex:1;">
+style="width:80px;">
 
-<button onclick="saveInventoryItem('${seed.name}')">
-Сохранить
+<button onclick="addOrderItem(${order.id},'${seed}')">
+Добавить
 </button>
 
+</div>
+`).join('')}
+
+</div>
+
+<div>
+
+<h3 style="margin-top:0;">Заказ</h3>
+
+${order.items.length===0
+? '<div class="small">Пусто</div>'
+: order.items.map(item=>{
+
+const stock=state.inventory[item.name]||0;
+
+return `
+<div style="padding:8px;border:1px solid #5a3c24;border-radius:8px;margin-bottom:8px;">
+
+<div>
+${item.name} x${item.amount}
+</div>
+
+<div class="small">
+На складе: ${stock}
 </div>
 
 </div>
@@ -772,66 +387,54 @@ style="flex:1;">
 }).join('')}
 
 </div>
-`;
 
-root.appendChild(wrap);
-}
-
-function saveInventoryItem(name){
-
-const input=document.getElementById(`manual-${name}`);
-
-const amount=parseInt(input.value)||0;
-
-if(amount<=0) return;
-
-if(!state.inventory[name]){
-state.inventory[name]=0;
-}
-
-state.inventory[name]+=amount;
-
-addLog(`${currentUser} добавил на склад ${name} x${amount}`);
-
-renderInventory();
-
-queueSave();
-}
-
-
-
-function renderLogs(){
-
-const root=document.getElementById('logs-list');
-
-root.innerHTML='';
-
-if(!Array.isArray(state.logs)) return;
-
-state.logs.forEach(log=>{
-
-const card=document.createElement('div');
-
-card.className='card';
-
-card.innerHTML=`
-<div class="small" style="font-size:10px;">
-${new Date(log.createdAt).toLocaleString('ru-RU')}
-</div>
-
-<div style="margin-top:6px;font-size:12px;">
-${log.text}
 </div>
 `;
 
 root.appendChild(card);
 
 });
-}
-);
+
 }
 
-function renderAll(){
+function updateOrderClient(id,value){
+
+const order=state.orders.find(o=>o.id===id);
+
+if(!order)return;
+
+order.client=value;
+
+save();
+}
+
+function removeOrder(id){
+
+state.orders=state.orders.filter(o=>o.id!==id);
+
+renderOrders();
+
+save();
+}
+
+function renderLogs(){
+const root=document.getElementById('logs-list');
+root.innerHTML='';
+state.logs.forEach(log=>{
+const card=document.createElement('div');
+card.className='card';
+card.innerHTML=`<div class="small">${new Date(log.createdAt).toLocaleString()}</div><div style="font-size:12px">${log.text}</div>`;
+root.appendChild(card);
+});
+}
+
+async function save(){
+await supabaseClient.from('ranch_app').update({data:state}).eq('id',1);
+}
+
+async function load(){
+const {data}=await supabaseClient.from('ranch_app').select('*').eq('id',1).single();
+if(data&&data.data)state=data.data;
 renderSeeds();
 renderGrowth();
 renderInventory();
@@ -839,12 +442,9 @@ renderOrders();
 renderLogs();
 }
 
-setInterval(renderGrowth,1000);
-
 checkAuth();
-loadState();
-
+load();
+setInterval(renderGrowth,1000);
 </script>
-
 </body>
 </html>
