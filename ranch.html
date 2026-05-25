@@ -39,6 +39,12 @@ transition:.15s;
 background:#37414d;
 }
 
+.tab-btn.active{
+background:#4a5a70;
+border-color:#6c82a1;
+box-shadow:0 0 10px rgba(108,130,161,.35);
+}
+
 .wrapper{
 padding:16px;
 }
@@ -115,7 +121,7 @@ box-shadow:0 6px 20px rgba(0,0,0,.25);
 </div>
 
 <div class="tabs">
-<button class="tab-btn" onclick="showTab('promisel')">Промысел</button>
+<button class="tab-btn active" onclick="showTab('promisel')">Промысел</button>
 <button class="tab-btn" onclick="showTab('growth')">Рост</button>
 <button class="tab-btn" onclick="showTab('inventory')">Склад</button>
 <button class="tab-btn" onclick="showTab('orders')">Заказы</button>
@@ -246,8 +252,24 @@ location.reload();
 }
 
 function showTab(id){
-document.querySelectorAll('.tab').forEach(t=>t.style.display='none');
+
+document.querySelectorAll('.tab').forEach(
+t=>t.style.display='none'
+);
+
 document.getElementById(id).style.display='block';
+
+document.querySelectorAll('.tab-btn').forEach(
+btn=>btn.classList.remove('active')
+);
+
+const activeBtn=[...document.querySelectorAll('.tab-btn')]
+.find(btn=>btn.getAttribute('onclick')===`showTab('${id}')`);
+
+if(activeBtn){
+activeBtn.classList.add('active');
+}
+
 }
 
 
@@ -338,24 +360,109 @@ renderGrowth();
 queueSave();
 }
 
+
 function renderGrowth(){
+
 const growing=document.getElementById('growing-list');
 const ready=document.getElementById('ready-list');
+
 growing.innerHTML='';
 ready.innerHTML='';
 
-state.plants.forEach(p=>{
+(state.plants||[])
+.sort((a,b)=>a.readyAt-b.readyAt)
+.forEach(p=>{
+
 const card=document.createElement('div');
+
 card.className='card';
 
 if(Date.now()>=p.readyAt){
+
 card.innerHTML=`
 <div>${p.name}</div>
-<div class="small">Семян: x${p.amount}</div>
-<div class="small">Готово: ${Math.floor((Date.now()-p.readyAt)/60000)} мин</div>
-<button onclick="collect(${p.id})">Собрал</button>`;
+
+<div class="small">
+Семян: x${p.amount}
+</div>
+
+<div class="small">
+Готово: ${Math.floor((Date.now()-p.readyAt)/60000)} мин
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+
+<button onclick="collect(${p.id})">
+Собрал
+</button>
+
+<button 
+onclick="removePlant('${p.id}')"
+style="background:#6a2f35;color:white;">
+✕
+</button>
+
+</div>
+`;
+
 ready.appendChild(card);
+
 }else{
+
+const remaining=p.readyAt-Date.now();
+
+const minutes=Math.floor(remaining/1000/60);
+
+const seconds=Math.floor((remaining/1000)%60);
+
+const danger=minutes<10;
+
+card.innerHTML=`
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;">
+
+<div>
+
+<div>${p.name}</div>
+
+<div class="small">
+Семян: x${p.amount}
+</div>
+
+<div class="small">
+Посадил: ${p.plantedBy}
+</div>
+
+<div style="
+margin-top:10px;
+font-size:22px;
+font-weight:bold;
+color:${danger?'#ff6b6b':'#d6dde7'};
+">
+
+${minutes}:${String(seconds).padStart(2,'0')}
+
+</div>
+
+</div>
+
+<button 
+onclick="removePlant('${p.id}')"
+style="background:#6a2f35;color:white;">
+✕
+</button>
+
+</div>
+`;
+
+growing.appendChild(card);
+
+}
+
+});
+
+}
+else{
 const remaining=p.readyAt-Date.now();
 
 const minutes=Math.floor(remaining/1000/60);
