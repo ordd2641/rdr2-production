@@ -215,6 +215,10 @@ try{
 const data=JSON.parse(saved);
 if(data.expires>Date.now()){
 currentUser=data.name;
+
+if(currentUser==='Игрок 1') currentUser='Виктор Харт';
+if(currentUser==='Игрок 2') currentUser='Людвиг Хельман';
+if(currentUser==='Игрок 3') currentUser='Викторя Хельман';
 document.getElementById('auth').style.display='none';
 }
 }catch(e){}
@@ -294,6 +298,11 @@ const minutes=Math.floor(remaining/1000/60);
 const seconds=Math.floor((remaining/1000)%60);
 
 card.innerHTML=`
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;">
+
+<div>
+
 <div>${p.name}</div>
 
 <div class="small">
@@ -306,11 +315,37 @@ card.innerHTML=`
 
 <div class="small">
 Осталось: ${minutes}:${String(seconds).padStart(2,'0')}
-</div>`;
+</div>
+
+</div>
+
+<button onclick="removePlant(${p.id})">
+✕
+</button>
+
+</div>
+`;
 growing.appendChild(card);
 }
 });
 }
+
+
+function removePlant(id){
+
+const plant=state.plants.find(x=>x.id===id);
+
+if(!plant)return;
+
+state.plants=state.plants.filter(x=>x.id!==id);
+
+addLog(`${currentUser} удалил посадку ${plant.name}`);
+
+renderGrowth();
+
+queueSave();
+}
+
 
 function collect(id){
 const plant=state.plants.find(x=>x.id===id);
