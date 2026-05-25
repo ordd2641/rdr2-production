@@ -1,1 +1,524 @@
-<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Ranch V1</title></head><body><h1>Континенталь Ranch V1</h1><p>Файл создан успешно. Полная версия подготовлена в ответе.</p></body></html>
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Континенталь Ranch</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body{
+margin:0;
+background:#0f0907;
+color:#f3e7c9;
+font-family:Arial,sans-serif;
+}
+
+.tabs{
+position:sticky;
+top:0;
+z-index:9999;
+display:flex;
+gap:8px;
+padding:12px;
+background:#120b08;
+border-bottom:1px solid #5a3c24;
+}
+
+.tab-btn{
+padding:10px 16px;
+background:#2c1d15;
+border:1px solid #5a3c24;
+color:#f3e7c9;
+border-radius:8px;
+cursor:pointer;
+}
+
+.tab-btn.active{
+background:#4a2d1a;
+}
+
+.wrapper{
+padding:18px;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+gap:14px;
+}
+
+.card{
+background:#1b130f;
+border:1px solid #5a3c24;
+border-radius:12px;
+padding:14px;
+}
+
+input,button{
+padding:8px;
+border-radius:8px;
+border:1px solid #5a3c24;
+background:#140e0b;
+color:#f3e7c9;
+}
+
+button{
+cursor:pointer;
+}
+
+.auth{
+position:fixed;
+inset:0;
+display:flex;
+align-items:center;
+justify-content:center;
+background:#0a0604;
+z-index:999999;
+}
+
+.auth-box{
+width:320px;
+padding:24px;
+background:#1b130f;
+border:1px solid #5a3c24;
+border-radius:12px;
+}
+
+.small{
+font-size:11px;
+color:#b79d77;
+}
+
+.green{color:#86d986;}
+.red{color:#ff7f7f;}
+
+.section-title{
+font-size:24px;
+margin-bottom:18px;
+}
+
+.grow-layout{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:18px;
+}
+
+@media(max-width:900px){
+.grow-layout{
+grid-template-columns:1fr;
+}
+}
+</style>
+</head>
+<body>
+
+<div id="auth" class="auth">
+<div class="auth-box">
+
+<div class="section-title">Континенталь Ranch</div>
+
+<input id="password" type="password" placeholder="Пароль" style="width:100%;margin-bottom:12px;">
+
+<button onclick="login()" style="width:100%;">Войти</button>
+
+<div id="auth-error" class="red small" style="margin-top:10px;"></div>
+
+</div>
+</div>
+
+<div class="tabs">
+<button class="tab-btn active" onclick="openTab('seeds',this)">Семена</button>
+<button class="tab-btn" onclick="openTab('grow',this)">Рост</button>
+<button class="tab-btn" onclick="openTab('inventory',this)">Склад</button>
+<button class="tab-btn" onclick="openTab('logs',this)">Лог</button>
+</div>
+
+<div class="wrapper">
+
+<div id="seeds" class="tab-section">
+<div class="section-title">Посадка</div>
+<div id="seed-list" class="grid"></div>
+</div>
+
+<div id="grow" class="tab-section" style="display:none;">
+<div class="section-title">Рост</div>
+
+<div class="grow-layout">
+
+<div>
+<h3>В процессе роста</h3>
+<div id="growing-list"></div>
+</div>
+
+<div>
+<h3>Готово к сбору</h3>
+<div id="ready-list"></div>
+</div>
+
+</div>
+</div>
+
+<div id="inventory" class="tab-section" style="display:none;">
+<div class="section-title">Склад</div>
+<div id="inventory-list"></div>
+</div>
+
+<div id="logs" class="tab-section" style="display:none;">
+<div class="section-title">Лог</div>
+<div id="logs-list"></div>
+</div>
+
+</div>
+
+<script>
+
+const SUPABASE_URL='https://cypspnueblwlwqmkwxvr.supabase.co';
+
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5cHNwbnVlYmx3bHdxbWt3eHZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTkxOTMsImV4cCI6MjA5NDczNTE5M30.wycI0cLxAB0-Exl4TAY7TJ16ZPO_tNBFPLKB6a_voNU';
+
+const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+const USERS={
+'1111':'Игрок 1',
+'2222':'Игрок 2',
+'3333':'Игрок 3'
+};
+
+let currentUser='';
+
+const seeds=[
+{name:'Дикая мята',yield:5,growMinutes:150,business:'Алкоголь',spoils:false},
+{name:'Алоэ',yield:5,growMinutes:255,business:'Алкоголь',spoils:false},
+{name:'Агава',yield:5,growMinutes:225,business:'Алкоголь',spoils:false},
+{name:'Кукуруза',yield:6,growMinutes:225,business:'Еда',spoils:true},
+{name:'Пшеница',yield:5,growMinutes:180,business:'Еда',spoils:false},
+{name:'Хмель',yield:5,growMinutes:180,business:'Алкоголь',spoils:false},
+{name:'Красная малина',yield:5,growMinutes:120,business:'Алкоголь',spoils:true},
+{name:'Черника',yield:5,growMinutes:120,business:'Алкоголь',spoils:true}
+];
+
+let state={
+plants:[],
+inventory:{},
+logs:[]
+};
+
+function openTab(id,el){
+
+document.querySelectorAll('.tab-section').forEach(s=>{
+s.style.display='none';
+});
+
+document.querySelectorAll('.tab-btn').forEach(b=>{
+b.classList.remove('active');
+});
+
+document.getElementById(id).style.display='block';
+
+el.classList.add('active');
+}
+
+function addLog(text){
+
+if(!Array.isArray(state.logs)){
+state.logs=[];
+}
+
+state.logs.push({
+text,
+createdAt:Date.now()
+});
+
+const fiveDays=1000*60*60*24*5;
+
+state.logs=state.logs.filter(log=>{
+return (Date.now()-log.createdAt)<fiveDays;
+});
+}
+
+async function loadState(){
+
+const {data}=await supabaseClient
+.from('ranch_app')
+.select('*')
+.eq('id',1)
+.single();
+
+if(data && data.data){
+state=data.data;
+}
+
+if(!state.plants) state.plants=[];
+if(!state.inventory) state.inventory={};
+if(!state.logs) state.logs=[];
+
+renderAll();
+}
+
+async function saveState(){
+
+await supabaseClient
+.from('ranch_app')
+.update({
+data:state
+})
+.eq('id',1);
+}
+
+function login(){
+
+const pass=document.getElementById('password').value;
+
+if(!USERS[pass]){
+document.getElementById('auth-error').innerHTML='Неверный пароль';
+return;
+}
+
+currentUser=USERS[pass];
+
+localStorage.setItem('ranch_auth',JSON.stringify({
+name:currentUser,
+expires:Date.now()+(1000*60*60*24*30)
+}));
+
+document.getElementById('auth').style.display='none';
+}
+
+function checkAuth(){
+
+const saved=localStorage.getItem('ranch_auth');
+
+if(!saved) return;
+
+const data=JSON.parse(saved);
+
+if(data.expires>Date.now()){
+currentUser=data.name;
+document.getElementById('auth').style.display='none';
+}
+}
+
+function renderSeeds(){
+
+const root=document.getElementById('seed-list');
+
+root.innerHTML='';
+
+seeds.forEach(seed=>{
+
+const card=document.createElement('div');
+
+card.className='card';
+
+card.innerHTML=`
+<div style="font-size:20px;color:#f0d9a1;margin-bottom:10px;">
+${seed.name}
+</div>
+
+<div class="small">Урожай: x${seed.yield}</div>
+<div class="small">Рост: ${seed.growMinutes} мин</div>
+<div class="small">Бизнес: ${seed.business}</div>
+
+<div class="small ${seed.spoils?'red':'green'}">
+${seed.spoils?'Портится':'Не портится'}
+</div>
+
+<input id="seed-${seed.name}" type="number" placeholder="Количество" style="width:100%;margin-top:12px;">
+
+<button onclick="plant('${seed.name}')" style="width:100%;margin-top:8px;">
+Посадить
+</button>
+`;
+
+root.appendChild(card);
+
+});
+}
+
+async function plant(name){
+
+const seed=seeds.find(s=>s.name===name);
+
+const amount=parseInt(document.getElementById(`seed-${name}`).value)||0;
+
+if(amount<=0) return;
+
+state.plants.push({
+id:Date.now()+Math.random(),
+name,
+amount,
+yield:seed.yield,
+readyAt:Date.now()+(seed.growMinutes*60*1000),
+plantedBy:currentUser
+});
+
+addLog(`${currentUser} посадил ${name} x${amount}`);
+
+renderAll();
+
+await saveState();
+}
+
+function renderGrowth(){
+
+const growing=document.getElementById('growing-list');
+const ready=document.getElementById('ready-list');
+
+growing.innerHTML='';
+ready.innerHTML='';
+
+state.plants.forEach(plant=>{
+
+const remaining=plant.readyAt-Date.now();
+
+const card=document.createElement('div');
+
+card.className='card';
+
+if(remaining<=0){
+
+card.innerHTML=`
+<div style="font-size:18px;color:#f0d9a1;">
+${plant.name}
+</div>
+
+<div class="small">
+Посадил: ${plant.plantedBy}
+</div>
+
+<div class="green" style="margin-top:8px;">
+Готово к сбору
+</div>
+
+<button onclick="collect('${plant.id}')" style="margin-top:10px;">
+Собрал
+</button>
+`;
+
+ready.appendChild(card);
+
+}else{
+
+const minutes=Math.floor(remaining/1000/60);
+const seconds=Math.floor((remaining/1000)%60);
+
+card.innerHTML=`
+<div style="font-size:18px;color:#f0d9a1;">
+${plant.name}
+</div>
+
+<div class="small">
+Посадил: ${plant.plantedBy}
+</div>
+
+<div style="margin-top:8px;">
+Осталось: ${minutes}:${String(seconds).padStart(2,'0')}
+</div>
+`;
+
+growing.appendChild(card);
+}
+
+});
+}
+
+async function collect(id){
+
+const plant=state.plants.find(p=>p.id===id);
+
+if(!plant) return;
+
+const total=plant.amount*plant.yield;
+
+if(!state.inventory[plant.name]){
+state.inventory[plant.name]=0;
+}
+
+state.inventory[plant.name]+=total;
+
+addLog(`${currentUser} собрал ${plant.name} x${total}`);
+
+state.plants=state.plants.filter(p=>p.id!==id);
+
+renderAll();
+
+await saveState();
+}
+
+function renderInventory(){
+
+const root=document.getElementById('inventory-list');
+
+root.innerHTML='';
+
+Object.entries(state.inventory).forEach(([name,amount])=>{
+
+const card=document.createElement('div');
+
+card.className='card';
+
+card.innerHTML=`
+<div style="font-size:18px;color:#f0d9a1;">
+${name}
+</div>
+
+<div style="margin-top:8px;">
+Количество: ${amount}
+</div>
+`;
+
+root.appendChild(card);
+
+});
+}
+
+function renderLogs(){
+
+const root=document.getElementById('logs-list');
+
+root.innerHTML='';
+
+const logs=[...state.logs].reverse();
+
+logs.forEach(log=>{
+
+const card=document.createElement('div');
+
+card.className='card';
+
+card.innerHTML=`
+<div class="small">
+${new Date(log.createdAt).toLocaleString('ru-RU')}
+</div>
+
+<div style="margin-top:8px;">
+${log.text}
+</div>
+`;
+
+root.appendChild(card);
+
+});
+}
+
+function renderAll(){
+renderSeeds();
+renderGrowth();
+renderInventory();
+renderLogs();
+}
+
+setInterval(()=>{
+renderGrowth();
+},1000);
+
+checkAuth();
+loadState();
+
+</script>
+
+</body>
+</html>
