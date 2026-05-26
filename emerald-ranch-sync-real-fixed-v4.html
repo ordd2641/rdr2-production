@@ -318,6 +318,7 @@ let state={plants:[],inventory:{},orders:[],logs:[],history:[]};
 let saveTimeout=null;
 let currentUser='';
 let isSaving=false;
+let isReceivingUpdate=false;
 
 function escapeHtml(value){
 return String(value ?? '')
@@ -671,10 +672,10 @@ Object.entries(state.inventory)
 .sort((a,b)=>a[0].localeCompare(b[0],'ru'))
 .forEach(([name,val])=>{
 
+const isEmpty=val===0;
 const card=document.createElement('div');
 
-card.className='card';
-if(val===0) card.classList.add('empty');
+card.className='card' + (isEmpty ? ' empty' : '');
 
 card.innerHTML=`
 
@@ -696,7 +697,7 @@ ${getPerishableText(name)}
 
 <div style="display:flex;gap:6px;">
 
-<button onclick="toggleInventoryEdit('${name}')" ${val===0?'disabled':''}>
+<button onclick="toggleInventoryEdit('${name}')" ${isEmpty ? 'disabled' : ''}>
 ✎
 </button>
 
@@ -1338,13 +1339,16 @@ plants:state.plants||[],
 inventory:state.inventory||{},
 orders:state.orders||[],
 logs:state.logs||[],
-history:state.history||[]
+history:state.history||[],
+updated_by:currentUser,
+updated_at:new Date().toISOString()
 };
 
 const {data,error}=await supabaseClient
 .from('ranch_app')
 .update({data:payload})
-.eq('id',1);
+.eq('id',1)
+.select();
 
 if(error){
 console.error('Save error:',error);
@@ -1414,6 +1418,9 @@ table:'ranch_app'
 
 console.log('Realtime update received');
 
+if(isReceivingUpdate)return;
+if(payload.new && payload.new.updated_by === currentUser)return;
+
 if(payload.new && payload.new.data){
 
 state=payload.new.data;
@@ -1430,6 +1437,8 @@ renderInventory();
 renderOrders();
 renderLogs();
 renderHistory();
+
+console.log('Realtime data updated');
 
 }
 
