@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emerald Ranch</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{
+margin:0;
+background:#181c22;
+color:#d6dde7;
+font-family:Arial,sans-serif;
+}
+
+.tabs{
+position:sticky;
+top:0;
+display:flex;
+gap:8px;
+padding:12px;
+background:#20252d;
+border-bottom:1px solid #323a46;
+z-index:99;
+backdrop-filter:blur(8px);
+}
+
+.tab-btn{
+padding:10px 14px;
+background:#2b323c;
+border:1px solid #3c4654;
+color:#d6dde7;
+border-radius:10px;
+cursor:pointer;
+transition:.15s;
+}
+
+.tab-btn:hover{
+background:#37414d;
+}
+
+.tab-btn.active{
+background:#4a5a70;
+border-color:#6c82a1;
+box-shadow:0 0 10px rgba(108,130,161,.35);
+}
+
+.wrapper{
+padding:16px;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+gap:12px;
+}
+
+.card{
+background:#232933;
+border:1px solid #384250;
+border-radius:14px;
+padding:12px;
+box-shadow:0 3px 10px rgba(0,0,0,.18);
+}
+
+input,button{
+padding:8px;
+border-radius:8px;
+border:1px solid #3b4655;
+background:#171c22;
+color:#d6dde7;
+}
+
+input::placeholder{
+color:#8e99aa;
+}
+
+button{
+cursor:pointer;
+transition:.15s;
+}
+
+button:hover{
+background:#313a46;
+}
+
+.small{
+font-size:11px;
+color:#97a2b4;
+}
+
+.auth{
+position:fixed;
+inset:0;
+background:#12161b;
+display:flex;
+align-items:center;
+justify-content:center;
+z-index:9999;
+}
+
+.auth-box{
+background:#232933;
+border:1px solid #384250;
+border-radius:14px;
+padding:24px;
+width:320px;
+box-shadow:0 6px 20px rgba(0,0,0,.25);
+}
+</style>
+</head>
+
+<body>
+<div id="debug-status" style="
+position:fixed;
+bottom:10px;
+right:10px;
+background:#111;
+color:#0f0;
+padding:8px 12px;
+border-radius:8px;
+font-size:12px;
+z-index:99999;
+max-width:320px;
+font-family:monospace;
+">
+SYNC READY
+</div>
+
+
+<div id="auth" class="auth">
+<div class="auth-box">
+<h2>Emerald Ranch</h2>
+<input id="password" type="password" placeholder="Пароль" style="width:220px">
+<button onclick="login()">Войти</button>
+<div id="auth-error" style="color:#ff7f7f;margin-top:8px"></div>
+</div>
+</div>
+
+<div class="tabs">
+<button class="tab-btn active" onclick="showTab('promisel')">Промысел</button>
+<button class="tab-btn" onclick="showTab('growth')">Рост</button>
+<button class="tab-btn" onclick="showTab('inventory')">Склад</button>
+<button class="tab-btn" onclick="showTab('orders')">Заказы</button>
+<button class="tab-btn" onclick="showTab('logs')">Лог</button>
+
+<div style="margin-left:auto;display:flex;gap:8px;">
+
+<button class="tab-btn" onclick="showTab('history')">
+Отмена действия
+</button>
+
+<button class="tab-btn" onclick="logout()">
+Выйти
+</button>
+
+</div>
+</div>
+
+<div class="wrapper">
+
+<div id="promisel" class="tab">
+<input id="seed-search" placeholder="Поиск..." oninput="renderSeeds()" style="width:100%;margin-bottom:12px">
+<div id="seed-list" class="grid"></div>
+</div>
+
+<div id="growth" class="tab" style="display:none">
+<input id="growth-search" placeholder="Поиск..." oninput="renderGrowth()" style="width:100%;margin-bottom:12px">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+<div>
+<h3>В процессе роста</h3>
+<div id="growing-list"></div>
+</div>
+<div>
+<h3>Готово к сбору</h3>
+<div id="ready-list"></div>
+</div>
+</div>
+</div>
+
+<div id="inventory" class="tab" style="display:none">
+<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+<h2 style="margin:0">Склад</h2>
+<button onclick="toggleAdd()">Добавить</button>
+</div>
+<div id="inventory-add" style="display:none"></div>
+<input id="inventory-search" placeholder="Поиск..." oninput="renderInventory()" style="width:100%;margin-bottom:12px">
+<div id="inventory-list" class="grid"></div>
+</div>
+
+<div id="orders" class="tab" style="display:none">
+<button onclick="createOrder()">+ Новый заказ</button>
+<div id="orders-list"></div>
+</div>
+
+<div id="history" class="tab" style="display:none">
+<div id="history-list"></div>
+</div>
+
+<div id="logs" class="tab" style="display:none">
+<div id="logs-list"></div>
+</div>
+
+</div>
+
+<script>
+const SUPABASE_URL='https://cypspnueblwlwqmkwxvr.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5cHNwbnVlYmx3bHdxbWt3eHZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTkxOTMsImV4cCI6MjA5NDczNTE5M30.wycI0cLxAB0-Exl4TAY7TJ16ZPO_tNBFPLKB6a_voNU';
+const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+const USERS={
+'1111':'Виктор Харт',
+'ludvig':'Людвиг Хельман',
+'victory':'Виктория Хельман'
+};
+
+
+const HARVEST_YIELD = {
+'Рис':4,
+'Капуста':4,
+'Каннабис':6,
+'Аляскинский женьшень':4,
+'Редис':6,
+'Картофель':4,
+'Листья Коки':4,
+'Томат':4,
+'Американский женьшень':6,
+'Хмель':4,
+'Кровавый цветок':6,
+'Ползучий Тимьян':4,
+'Дикий чеснок':4,
+'Черника':6,
+'Черная смородина':6,
+'Душица':6,
+'Шпинат':6,
+'Агава':4,
+'Чок Дейзи':4,
+'Брокколи':4,
+'Алоэ':6,
+'Кукуруза':4,
+'Ползучая слива':6,
+'Олеандровый шалфей':6,
+'Дикая мята':4,
+'Английская булава':6,
+'Дикая морковь':4,
+'Зимняя Ягода':6,
+'Пшеница':4,
+'Молочай':6,
+'Тысячелистник':6,
+'Красный шалфей':6,
+'Перийный Мак':4,
+'Красная Малина':6,
+'Гриб-зонтик':4,
+'Тростник':4
+};
+
+const GROWTH_TIMES = {"Хлопок": 225, "Томат": 195, "Брокколи": 240, "Агава": 225, "Капуста": 180, "Алоэ": 260, "Рис": 150, "Шпинат": 210, "Редис": 180, "Картофель": 180, "Душица": 210, "Каннабис": 180, "Английская булава": 210, "Аляскинский женьшень": 150, "Листья Коки": 180, "Американский женьшень": 150, "Хмель": 180, "Черника": 195, "Черная смородина": 195, "Чок Дейзи": 210, "Кровавый цветок": 180, "Кукуруза": 225, "Ползучая слива": 240, "Ползучий Тимьян": 180, "Дикий чеснок": 150, "Олеандровый шалфей": 210, "Молочай":180, "Гриб-зонтик":240, "Перийный Мак":210, "Дикая мята":150, "Дикая морковь":150, "Красный шалфей":210, "Красная Малина":210, "Зимняя Ягода":210, "Тысячелистник":195, "Тростник":240, "Пшеница":210};
+
+const seeds=[
+'Агава','Алоэ','Аляскинский женьшень','Английская булава','Американский женьшень',
+'Баранина','Виноград','Говядина','Гриб-зонтик','Груша','Дикая мята','Душица',
+'Зимняя Ягода','Каннабис','Капуста','Ползучий Тимьян','Картофель','Красная Малина',
+'Листья Коки','Красный шалфей','Кровавый цветок','Кукуруза','Перийный Мак',
+'Дикая морковь','Молочай','Олеандровый шалфей','Персик','Пшеница','Редис','Рис',
+'Сахар','Табак','Томат','Тростник','Тысячелистник','Хмель','Хлопок',
+'Черная смородина','Ползучая слива','Черника','Дикий чеснок','Чок Дейзи',
+'Шпинат','Яблоко','Яйца','Мед'
+].sort((a,b)=>a.localeCompare(b,'ru'));
+
+seeds.push(
+'Мясо дичи',
+'Оленина',
+'Мясо крупной дичи',
+'Мясо птицы'
+);
+
+seeds.sort((a,b)=>a.localeCompare(b,'ru'));
+
+let state={plants:[],inventory:{},orders:[],logs:[],history:[]};
+
+let saveTimeout=null;
+let currentUser='';
+
+function escapeHtml(value){
+return String(value ?? '')
+.replace(/&/g,'&amp;')
+.replace(/</g,'&lt;')
+.replace(/>/g,'&gt;')
+.replace(/"/g,'&quot;')
+.replace(/'/g,'&#39;');
+}
+
+function login(){
+const pass=document.getElementById('password').value.trim();
+if(!USERS[pass]){
+document.getElementById('auth-error').innerText='Неверный пароль';
+return;
+}
+currentUser=USERS[pass];
+localStorage.setItem('ranch_auth',JSON.stringify({
+name:currentUser,
+expires:Date.now()+1000*60*60*24*30
+}));
+document.getElementById('auth').style.display='none';
+}
+
+function checkAuth(){
+const saved=localStorage.getItem('ranch_auth');
+if(!saved)return;
+try{
+const data=JSON.parse(saved);
+if(data.expires>Date.now()){
+currentUser=data.name;
+
+if(currentUser==='Игрок 1') currentUser='Виктор Харт';
+if(currentUser==='Игрок 2') currentUser='Людвиг Хельман';
+if(currentUser==='Игрок 3') currentUser='Виктория Хельман';
+document.getElementById('auth').style.display='none';
+}
+}catch(e){}
+}
+
+function logout(){
+localStorage.removeItem('ranch_auth');
+location.reload();
+}
+
+function showTab(id){
+
+document.querySelectorAll('.tab').forEach(
+t=>t.style.display='none'
+);
+
+document.getElementById(id).style.display='block';
+
+document.querySelectorAll('.tab-btn').forEach(
+btn=>btn.classList.remove('active')
+);
+
+const activeBtn=[...document.querySelectorAll('.tab-btn')]
+.find(btn=>btn.getAttribute('onclick')===`showTab('${id}')`);
+
+if(activeBtn){
+activeBtn.classList.add('active');
+}
+
+}
+
+
+function addLog(text){
+state.logs.unshift({text,createdAt:Date.now()});
+state.logs=state.logs.slice(0,100);
+renderLogs();
+renderHistory();
+
+
+queueSave();
+}
+
+function renderSeeds(){
+const root=document.getElementById('seed-list');
+root.innerHTML='';
+const s=document.getElementById('seed-search').value.toLowerCase();
+
+seeds.filter(x=>x.toLowerCase().includes(s)).forEach(seed=>{
+const card=document.createElement('div');
+card.className='card';
+card.innerHTML=`
+
+<div style="font-size:18px;color:#dfe7f2;margin-bottom:8px;">
+${seed}
+</div>
+
+<div class="small">
+Рост: ${GROWTH_TIMES[seed]||180} мин
+</div>
+
+<div class="small">
+Урожай: x${HARVEST_YIELD[seed]||5}
+</div>
+
+<div class="small" style="color:${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Яйца'].includes(seed)?'#ff7f7f':'#8fd18f'};">
+${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Яйца'].includes(seed)?'Портится':'Не портится'}
+</div>
+
+<div style="display:flex;gap:8px;margin-top:10px">
+
+<input 
+id="seed-${seed}" 
+type="number" 
+placeholder="Кол-во" 
+style="width:90px">
+
+<button onclick="plant('${seed}')">
+Посадить
+</button>
+
+</div>`;
+root.appendChild(card);
+});
+}
+
+function plant(seed){
+const amount=parseInt(document.getElementById(`seed-${seed}`).value)||0;
+if(amount<=0)return;
+pushHistory(`Посадка ${seed} x${amount}`);
+state.plants.unshift({
+id:Date.now(),
+name:seed,
+amount,
+plantedBy:currentUser,
+readyAt:Date.now()+((GROWTH_TIMES[seed]||180)*60000)
+});
+addLog(`${currentUser} посадил ${seed} x${amount}`);
+renderGrowth();
+queueSave();
+}
+
+
+
+function renderGrowth(){
+
+const growing=document.getElementById('growing-list');
+const ready=document.getElementById('ready-list');
+
+if(!growing || !ready)return;
+
+growing.innerHTML='';
+ready.innerHTML='';
+
+(state.plants||[])
+.sort((a,b)=>a.readyAt-b.readyAt)
+.forEach(p=>{
+
+const card=document.createElement('div');
+
+card.className='card';
+
+if(Date.now()>=p.readyAt){
+
+card.innerHTML=`
+
+<div>${p.name}</div>
+
+<div class="small">
+Семян: x${p.amount}
+</div>
+
+<div class="small">
+Готово: ${Math.floor((Date.now()-p.readyAt)/60000)} мин
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+
+<button onclick="collect('${p.id}')">
+Собрал
+</button>
+
+<button 
+onclick="removePlant('${p.id}')"
+style="background:#6a2f35;color:white;">
+✕
+</button>
+
+</div>
+`;
+
+ready.appendChild(card);
+
+}else{
+
+const remaining=p.readyAt-Date.now();
+
+const minutes=Math.floor(remaining/1000/60);
+const seconds=Math.floor((remaining/1000)%60);
+
+const isDanger=minutes<10;
+
+card.innerHTML=`
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;">
+
+<div>
+
+<div>${p.name}</div>
+
+<div class="small">
+Семян: x${p.amount}
+</div>
+
+<div class="small">
+Посадил: ${p.plantedBy}
+</div>
+
+<div style="
+margin-top:10px;
+font-size:18px;
+font-weight:bold;
+color:${isDanger?'#ff6b6b':'#d6dde7'};
+">
+
+Осталось ${minutes}:${String(seconds).padStart(2,'0')}
+
+</div>
+
+</div>
+
+<button 
+onclick="removePlant('${p.id}')"
+style="background:#6a2f35;color:white;">
+✕
+</button>
+
+</div>
+`;
+
+growing.appendChild(card);
+
+}
+
+});
+
+}
+
+
+async function removePlant(id){
+
+const plant=state.plants.find(
+x=>String(x.id)===String(id)
+);
+
+if(!plant)return;
+
+pushHistory(`Удаление посадки ${plant.name}`);
+
+state.plants=state.plants.filter(
+x=>String(x.id)!==String(id)
+);
+
+addLog(`${currentUser} удалил посадку ${plant.name} x${plant.amount}`);
+
+renderGrowth();
+
+await save();
+
+}
+
+
+async function collect(id){
+
+const plant=state.plants.find(
+x=>String(x.id)===String(id)
+);
+
+if(!plant)return;
+
+pushHistory(`Сбор ${plant.name}`);
+
+const harvest=HARVEST_YIELD[plant.name]||5;
+
+const total=plant.amount*harvest;
+
+if(state.inventory[plant.name]===undefined){
+state.inventory[plant.name]=0;
+}
+
+state.inventory[plant.name]+=total;
+
+state.plants=state.plants.filter(
+x=>String(x.id)!==String(id)
+);
+
+addLog(`${currentUser} собрал ${plant.name} x${total}`);
+
+renderGrowth();
+renderInventory();
+
+queueSave();
+
+}
+
+
+function toggleAdd(){
+const el=document.getElementById('inventory-add');
+el.style.display=el.style.display==='none'?'block':'none';
+renderAddInventory();
+}
+
+function renderAddInventory(){
+const root=document.getElementById('inventory-add');
+root.innerHTML='<div class="grid">'+seeds.map(seed=>`
+<div class="card">
+<div>${seed}</div>
+<div style="display:flex;gap:8px;margin-top:10px">
+<input id="manual-${seed}" type="number" style="width:90px">
+<button onclick="saveInventory('${seed}')">Сохранить</button>
+</div>
+</div>`).join('')+'</div>';
+}
+
+async function saveInventory(name){
+const val=parseInt(document.getElementById(`manual-${name}`).value)||0;
+if(val<=0)return;
+
+pushHistory(`Добавление на склад ${name} x${val}`);
+
+state.inventory[name]=(state.inventory[name]||0)+val;
+
+addLog(`${currentUser} добавил ${name} x${val}`);
+
+renderInventory();
+
+const ok=await save();
+
+if(ok){
+const {data}=await supabaseClient
+.from('ranch_app')
+.select('*')
+.eq('id',1)
+.single();
+
+if(data&&data.data){
+state=data.data;
+renderInventory();
+}
+}
+}
+
+function renderInventory(){
+
+const root=document.getElementById('inventory-list');
+
+root.innerHTML='';
+
+const search=(document.getElementById('inventory-search').value||'').toLowerCase();
+
+Object.entries(state.inventory)
+.filter(([name])=>name.toLowerCase().includes(search))
+.sort((a,b)=>a[0].localeCompare(b[0],'ru'))
+.forEach(([name,val])=>{
+
+const card=document.createElement('div');
+
+card.className='card';
+
+card.innerHTML=`
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;">
+
+<div>
+
+<div>${name}</div>
+
+<div style="margin-top:8px;">
+Количество: ${val}
+</div>
+
+<div class="small" style="margin-top:6px;color:${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Баранина','Говядина','Мясо дичи','Оленина','Мясо крупной дичи','Мясо птицы','Яйца'].includes(name)?'#ff7f7f':'#8fd18f'};">
+${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Баранина','Говядина','Мясо дичи','Оленина','Мясо крупной дичи','Мясо птицы','Яйца'].includes(name)?'Портится':'Не портится'}
+</div>
+
+</div>
+
+<div style="display:flex;gap:6px;">
+
+<button onclick="toggleInventoryEdit('${name}')">
+✎
+</button>
+
+</div>
+
+</div>
+
+<div id="edit-${name}" style="display:none;margin-top:10px;">
+
+<div style="display:flex;gap:8px;align-items:center;">
+
+<button onclick="inventoryChange('${name}',-1)">-</button>
+
+<input 
+id="edit-input-${name}"
+type="number"
+value="${val}"
+style="width:60px;">
+
+<button onclick="inventoryChange('${name}',1)">+</button>
+
+<button onclick="saveInventoryEdit('${name}')">
+Сохранить
+</button>
+
+</div>
+
+</div>
+`;
+
+root.appendChild(card);
+
+});
+
+}
+
+function toggleInventoryEdit(name){
+
+const el=document.getElementById(`edit-${name}`);
+
+el.style.display=el.style.display==='none'?'block':'none';
+}
+
+function inventoryChange(name,delta){
+
+const input=document.getElementById(`edit-input-${name}`);
+
+let value=parseInt(input.value)||0;
+
+value+=delta;
+
+if(value<0)value=0;
+
+input.value=value;
+}
+
+async function saveInventoryEdit(name){
+
+const input=document.getElementById(`edit-input-${name}`);
+
+const value=parseInt(input.value)||0;
+
+pushHistory(`Изменение склада ${name}`);
+
+state.inventory[name]=value;
+
+addLog(`${currentUser} изменил склад ${name} x${value}`);
+
+renderInventory();
+renderHistory();
+
+const ok=await save();
+
+if(ok){
+const {data}=await supabaseClient
+.from('ranch_app')
+.select('*')
+.eq('id',1)
+.single();
+
+if(data&&data.data){
+state=data.data;
+renderInventory();
+}
+}
+}
+
+
+
+function pushHistory(action){
+
+if(!state.history){
+state.history=[];
+}
+
+state.history.unshift({
+id:String(Date.now()+Math.random()),
+action,
+snapshot:JSON.parse(JSON.stringify({
+plants:state.plants,
+inventory:state.inventory,
+orders:state.orders,
+logs:state.logs,
+history:state.history
+})),
+createdAt:Date.now()
+});
+
+state.history=state.history.slice(0,20);
+
+renderHistory();
+
+}
+
+function renderHistory(){
+
+const root=document.getElementById('history-list');
+
+if(!root)return;
+
+root.innerHTML='';
+
+(state.history||[]).forEach(item=>{
+
+const card=document.createElement('div');
+
+card.className='card';
+
+card.innerHTML=`
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+
+<div>
+<div>${item.action}</div>
+
+<div class="small" style="margin-top:6px;">
+${new Date(item.createdAt).toLocaleString('ru-RU')}
+</div>
+</div>
+
+<button onclick="undoAction('${item.id}')">
+Отменить
+</button>
+
+</div>
+`;
+
+root.appendChild(card);
+
+});
+
+}
+
+function undoAction(id){
+
+const item=state.history.find(
+x=>String(x.id)===String(id)
+);
+
+if(!item)return;
+
+const restored=item.snapshot;
+
+state.plants=restored.plants||[];
+state.inventory=restored.inventory||{};
+state.orders=restored.orders||[];
+state.logs=restored.logs||[];
+state.history=restored.history||[];
+
+state.history=state.history.filter(
+x=>String(x.id)!==String(id)
+);
+
+addLog(`${currentUser} отменил действие`);
+
+renderGrowth();
+renderInventory();
+renderOrders();
+renderLogs();
+renderHistory();
+
+queueSave();
+
+}
+
+function createOrder(){
+
+pushHistory('Создание заказа');
+
+state.orders.unshift({
+id:String(Date.now()+Math.random()),
+client:'',
+dueDate:'',
+deliveryDays:'',
+createdBy:currentUser,
+items:[],
+status:'editing'
+});
+
+addLog(`${currentUser} создал заказ`);
+
+renderOrders();
+
+queueSave();
+
+}
+
+function updateOrderClient(id,value){
+
+const order=state.orders.find(
+o=>String(o.id)===String(id)
+);
+
+if(!order)return;
+
+order.client=value;
+
+queueSave();
+
+}
+
+function updateOrderDate(id,value){
+
+const order=state.orders.find(
+o=>String(o.id)===String(id)
+);
+
+if(!order)return;
+
+order.dueDate=value;
+
+queueSave();
+
+}
+
+
+function updateOrderPrice(id,value){
+
+const order=state.orders.find(
+o=>String(o.id)===String(id)
+);
+
+if(!order)return;
+
+order.totalPrice=value;
+
+queueSave();
+
+}
+
+
+function updateOrderDays(id,value){
+
+const order=state.orders.find(
+o=>String(o.id)===String(id)
+);
+
+if(!order)return;
+
+order.deliveryDays=value;
+
+queueSave();
+
+}
+
+function addOrderItem(orderId,name){
+
+const input=document.getElementById(
+`order-${orderId}-${name}`
+);
+
+if(!input)return;
+
+const amount=parseInt(input.value)||0;
+
+if(amount<=0)return;
+
+const order=state.orders.find(
+o=>String(o.id)===String(orderId)
+);
+
+if(!order)return;
+
+const existing=order.items.find(
+i=>i.name===name
+);
+
+pushHistory(`Добавление ${name} в заказ`);
+
+if(existing){
+existing.amount=amount;
+}else{
+order.items.push({
+name,
+amount
+});
+}
+
+addLog(`${currentUser} добавил ${name} x${amount} в заказ`);
+
+renderOrders();
+
+queueSave();
+
+}
+
+
+function removeOrderItem(orderId,name){
+
+const order=state.orders.find(
+o=>String(o.id)===String(orderId)
+);
+
+if(!order)return;
+
+pushHistory(`Удаление позиции ${name}`);
+
+order.items=order.items.filter(
+item=>item.name!==name
+);
+
+addLog(`${currentUser} удалил ${name} из заказа`);
+
+renderOrders();
+
+queueSave();
+
+}
+
+
+function toggleOrderEdit(id){
+
+const order=state.orders.find(
+o=>String(o.id)===String(id)
+);
+
+if(!order)return;
+
+order.status=order.status==='ordered'
+?'editing'
+:'ordered';
+
+renderOrders();
+
+queueSave();
+
+}
+
+function completeOrder(id){
+
+const order=state.orders.find(
+o=>String(o.id)===String(id)
+);
+
+if(!order)return;
+
+if(order.items.length===0)return;
+
+const canComplete=order.items.every(item=>{
+
+return (state.inventory[item.name]||0)>=item.amount;
+
+});
+
+if(!canComplete)return;
+
+pushHistory('Выполнение заказа');
+
+order.items.forEach(item=>{
+
+state.inventory[item.name]=Math.max(
+0,
+(state.inventory[item.name]||0)-item.amount
+);
+
+});
+
+state.orders=state.orders.filter(
+o=>String(o.id)!==String(id)
+);
+
+addLog(`${currentUser} выполнил заказ`);
+
+renderOrders();
+renderInventory();
+
+queueSave();
+
+}
+
+function removeOrder(id){
+
+pushHistory('Удаление заказа');
+
+state.orders=state.orders.filter(
+o=>String(o.id)!==String(id)
+);
+
+addLog(`${currentUser} удалил заказ`);
+
+renderOrders();
+
+queueSave();
+
+}
+
+function renderOrders(){
+
+const root=document.getElementById('orders-list');
+
+if(!root)return;
+
+root.innerHTML='';
+
+(state.orders||[]).forEach(order=>{
+
+const card=document.createElement('div');
+
+card.className='card';
+
+const planner=order.items.length===0
+? '<div class="small">Пусто</div>'
+: order.items.map(item=>{
+
+const stock=state.inventory[item.name]||0;
+
+const missing=Math.max(0,item.amount-stock);
+
+const yieldAmount = HARVEST_YIELD[item.name] || 5;
+
+const needSeeds = Math.ceil(missing / yieldAmount);
+
+return `
+<div style="padding:8px;border:1px solid #384250;border-radius:8px;margin-bottom:8px;background:${stock>=item.amount?'rgba(40,90,40,.25)':'rgba(90,40,40,.25)'};">
+
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+
+<div>
+${item.name} x${item.amount}
+</div>
+
+<button
+onclick="removeOrderItem('${order.id}','${item.name}')"
+style="background:#6a2f35;color:white;padding:2px 8px;border:none;border-radius:6px;">
+✕
+</button>
+
+</div>
+
+<div class="small" style="margin-top:6px;">
+На складе: ${stock}
+</div>
+
+${missing>0
+?`
+<div class="small" style="color:#ff7f7f;">
+Не хватает: ${missing}<br>
+Нужно семян: ${needSeeds}
+</div>
+`
+:`
+<div class="small" style="color:#8fd18f;">
+Достаточно
+</div>
+`
+}
+
+</div>
+`;
+
+}).join('');
+
+const canComplete=order.items.length>0 &&
+order.items.every(
+item=>(state.inventory[item.name]||0)>=item.amount
+);
+
+card.innerHTML=`
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:14px;">
+
+<div>
+
+<input
+placeholder="Имя клиента"
+value="${escapeHtml(order.client||'')}"
+oninput="updateOrderClient('${order.id}',this.value)"
+style="width:220px;margin-bottom:10px;">
+
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+
+<div class="small">Доставка на</div>
+
+<input
+placeholder="dd/mm/yyyy"
+value="${escapeHtml(order.dueDate||'')}"
+oninput="updateOrderDate('${order.id}',this.value)"
+style="width:120px;">
+
+<div class="small">или через</div>
+
+<input
+type="number"
+placeholder="Дней"
+value="${escapeHtml(order.deliveryDays||'')}"
+oninput="updateOrderDays('${order.id}',this.value)"
+style="width:70px;">
+
+</div>
+
+<div class="small" style="margin-top:8px;">
+Оформил: ${order.createdBy}
+</div>
+
+<div style="margin-top:10px;">
+
+<div class="small">
+Сумма заказа
+</div>
+
+<input
+type="number"
+placeholder="$"
+value="${escapeHtml(order.totalPrice||'')}"
+oninput="updateOrderPrice('${order.id}',this.value)"
+style="width:120px;">
+
+</div>
+
+</div>
+
+<div style="display:flex;gap:8px;">
+
+<button
+onclick="toggleOrderEdit('${order.id}')"
+style="background:#5b3a1f;">
+${order.status==='ordered'?'Редактировать':'Оформить'}
+</button>
+
+<button
+onclick="removeOrder('${order.id}')"
+style="background:#6a2f35;color:white;">
+✕
+</button>
+
+</div>
+
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+
+<div>
+
+${order.status==='ordered'
+? '<div class="small">Заказ оформлен</div>'
+: `
+<h3 style="margin-top:0;">Добавить травы</h3>
+
+${seeds.map(seed=>`
+<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+
+<div style="width:150px;font-size:13px;">
+${seed}
+</div>
+
+<input
+id="order-${order.id}-${seed}"
+type="number"
+placeholder="Кол-во"
+style="width:60px;">
+
+<button onclick="addOrderItem('${order.id}','${seed}')">
+Добавить
+</button>
+
+</div>
+`).join('')}
+`
+}
+
+</div>
+
+<div>
+
+<h3 style="margin-top:0;">Заказ / Планировщик</h3>
+
+${planner}
+
+${order.items.length>0
+? canComplete
+? `
+<button
+onclick="completeOrder('${order.id}')"
+style="margin-top:12px;background:#35543d;">
+Заказ выполнен
+</button>
+`
+: `
+<button
+disabled
+style="margin-top:12px;background:#4a2d2d;opacity:.6;">
+Не хватает товаров
+</button>
+`
+:''}
+
+</div>
+
+</div>
+`;
+
+root.appendChild(card);
+
+});
+
+}
+
+
+function renderLogs(){
+const root=document.getElementById('logs-list');
+root.innerHTML='';
+state.logs.forEach(log=>{
+const card=document.createElement('div');
+card.className='card';
+card.innerHTML=`<div class="small">${new Date(log.createdAt).toLocaleString()}</div><div style="font-size:12px">${log.text}</div>`;
+root.appendChild(card);
+});
+}
+
+function queueSave(){
+
+clearTimeout(saveTimeout);
+
+saveTimeout=setTimeout(()=>{
+
+save().catch(console.error);
+
+},50);
+
+}
+
+async function save(){
+try{
+
+const payload={
+plants:state.plants||[],
+inventory:state.inventory||{},
+orders:state.orders||[],
+logs:state.logs||[],
+history:state.history||[]
+};
+
+const response=await supabaseClient
+.from('ranch_app')
+.update({data:payload})
+.eq('id',1)
+.select();
+
+if(response.error){
+console.error('SUPABASE SAVE ERROR',response.error);
+return false;
+}
+
+return true;
+
+}catch(e){
+console.error('SAVE ERROR',e);
+return false;
+}
+}
+
+
+async function load(){
+
+try{
+
+const {data}=await supabaseClient
+.from('ranch_app')
+.select('*')
+.eq('id',1)
+.single();
+
+if(data&&data.data){
+state=data.data;
+}
+
+if(!state.plants) state.plants=[];
+if(!state.inventory) state.inventory={};
+if(!state.orders) state.orders=[];
+if(!state.logs) state.logs=[];
+if(!state.history) state.history=[];
+
+seeds.forEach(seed=>{
+if(state.inventory[seed]===undefined){
+state.inventory[seed]=0;
+}
+});
+
+renderSeeds();
+renderGrowth();
+renderInventory();
+renderOrders();
+renderLogs();
+renderHistory();
+
+
+
+}catch(e){
+console.error(e);
+}
+
+}
+
+
+checkAuth();
+load();
+
+supabaseClient
+.channel('emerald-ranch-sync')
+.on('postgres_changes',{
+event:'UPDATE',
+schema:'public',
+table:'ranch_app'
+},payload=>{
+
+if(payload.new && payload.new.data){
+
+const incoming=payload.new.data||{};
+
+state={
+...state,
+...incoming,
+
+plants:incoming.plants||state.plants||[],
+inventory:incoming.inventory||state.inventory||{},
+orders:incoming.orders||state.orders||[],
+logs:incoming.logs||state.logs||[],
+history:incoming.history||state.history||[]
+};
+
+renderSeeds();
+renderGrowth();
+renderInventory();
+renderOrders();
+renderLogs();
+renderHistory();
+
+
+}
+
+})
+.subscribe(async(status)=>{
+console.log('Realtime status:',status);
+
+if(status==='SUBSCRIBED'){
+const {data}=await supabaseClient
+.from('ranch_app')
+.select('*')
+.eq('id',1)
+.single();
+
+if(data&&data.data){
+state=data.data;
+
+renderSeeds();
+renderGrowth();
+renderInventory();
+renderOrders();
+renderLogs();
+renderHistory();
+}
+}
+});
+
+setInterval(renderGrowth,1000);
+</script>
+</body>
+</html>
