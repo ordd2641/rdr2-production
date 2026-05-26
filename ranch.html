@@ -194,7 +194,7 @@ const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const USERS={
 '1111':'Виктор Харт',
 'ludvig':'Людвиг Хельман',
-'victory':'Викторя Хельман'
+'victory':'Виктория Хельман'
 };
 
 
@@ -204,7 +204,7 @@ const HARVEST_YIELD = {
 'Тростник':4
 };
 
-const GROWTH_TIMES = {"Хлопок": 225, "Томат": 195, "Брокколи": 240, "Агава": 225, "Капуста": 180, "Алоэ": 260, "Рис": 150, "Шпинат": 210, "Редис": 180, "Картофель": 180, "Душица": 210, "Каннабис": 180, "Аляскинский женьшень": 150, "Листья Коки": 180, "Американский женьшень": 150, "Хмель": 180, "Черника": 195, "Черная смородина": 195, "Чок Дейзи": 210, "Кровавый цветок": 180, "Кукуруза": 225, "Ползучая слива": 240, "Ползучий Тимьян": 180, "Дикий чеснок": 150, "Олеандровый шалфей": 210};
+const GROWTH_TIMES = {"Хлопок": 225, "Томат": 195, "Брокколи": 240, "Агава": 225, "Капуста": 180, "Алоэ": 260, "Рис": 150, "Шпинат": 210, "Редис": 180, "Картофель": 180, "Душица": 210, "Каннабис": 180, "Английская булава": 210, "Аляскинский женьшень": 150, "Листья Коки": 180, "Американский женьшень": 150, "Хмель": 180, "Черника": 195, "Черная смородина": 195, "Чок Дейзи": 210, "Кровавый цветок": 180, "Кукуруза": 225, "Ползучая слива": 240, "Ползучий Тимьян": 180, "Дикий чеснок": 150, "Олеандровый шалфей": 210};
 
 const seeds=[
 'Агава','Алоэ','Аляскинский женьшень','Английская булава','Американский женьшень',
@@ -231,6 +231,15 @@ let state={plants:[],inventory:{},orders:[],logs:[],history:[]};
 let saveTimeout=null;
 let currentUser='';
 
+function escapeHtml(value){
+return String(value ?? '')
+.replace(/&/g,'&amp;')
+.replace(/</g,'&lt;')
+.replace(/>/g,'&gt;')
+.replace(/"/g,'&quot;')
+.replace(/'/g,'&#39;');
+}
+
 function login(){
 const pass=document.getElementById('password').value.trim();
 if(!USERS[pass]){
@@ -255,7 +264,7 @@ currentUser=data.name;
 
 if(currentUser==='Игрок 1') currentUser='Виктор Харт';
 if(currentUser==='Игрок 2') currentUser='Людвиг Хельман';
-if(currentUser==='Игрок 3') currentUser='Викторя Хельман';
+if(currentUser==='Игрок 3') currentUser='Виктория Хельман';
 document.getElementById('auth').style.display='none';
 }
 }catch(e){}
@@ -284,24 +293,6 @@ const activeBtn=[...document.querySelectorAll('.tab-btn')]
 if(activeBtn){
 activeBtn.classList.add('active');
 }
-
-}
-
-
-function pushHistory(action){
-
-state.history.unshift({
-id:String(Date.now()+Math.random()),
-action,
-snapshot:JSON.parse(JSON.stringify(state)),
-createdAt:Date.now()
-});
-
-state.history=state.history.slice(0,20);
-
-renderHistory();
-
-renderHistory();
 
 }
 
@@ -335,7 +326,7 @@ ${seed}
 </div>
 
 <div class="small">
-Урожай: x5
+Урожай: x${HARVEST_YIELD[seed]||5}
 </div>
 
 <div class="small" style="color:${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Яйца'].includes(seed)?'#ff7f7f':'#8fd18f'};">
@@ -362,6 +353,7 @@ root.appendChild(card);
 function plant(seed){
 const amount=parseInt(document.getElementById(`seed-${seed}`).value)||0;
 if(amount<=0)return;
+pushHistory(`Посадка ${seed} x${amount}`);
 state.plants.unshift({
 id:Date.now(),
 name:seed,
@@ -369,7 +361,6 @@ amount,
 plantedBy:currentUser,
 readyAt:Date.now()+((GROWTH_TIMES[seed]||180)*60000)
 });
-pushHistory(`Посадка ${seed} x${amount}`);
 addLog(`${currentUser} посадил ${seed} x${amount}`);
 renderGrowth();
 queueSave();
@@ -482,6 +473,28 @@ growing.appendChild(card);
 }
 
 
+function removePlant(id){
+
+const plant=state.plants.find(
+x=>String(x.id)===String(id)
+);
+
+if(!plant)return;
+
+pushHistory(`Удаление посадки ${plant.name}`);
+
+state.plants=state.plants.filter(
+x=>String(x.id)!==String(id)
+);
+
+addLog(`${currentUser} удалил посадку ${plant.name} x${plant.amount}`);
+
+renderGrowth();
+
+queueSave();
+
+}
+
 
 function collect(id){
 
@@ -537,8 +550,9 @@ root.innerHTML='<div class="grid">'+seeds.map(seed=>`
 
 function saveInventory(name){
 const val=parseInt(document.getElementById(`manual-${name}`).value)||0;
-state.inventory[name]=(state.inventory[name]||0)+val;
+if(val<=0)return;
 pushHistory(`Добавление на склад ${name} x${val}`);
+state.inventory[name]=(state.inventory[name]||0)+val;
 addLog(`${currentUser} добавил ${name} x${val}`);
 renderInventory();
 queueSave();
@@ -644,6 +658,8 @@ const input=document.getElementById(`edit-input-${name}`);
 
 const value=parseInt(input.value)||0;
 
+pushHistory(`Изменение склада ${name}`);
+
 state.inventory[name]=value;
 
 addLog(`${currentUser} изменил склад ${name} x${value}`);
@@ -669,7 +685,8 @@ snapshot:JSON.parse(JSON.stringify({
 plants:state.plants,
 inventory:state.inventory,
 orders:state.orders,
-logs:state.logs
+logs:state.logs,
+history:state.history
 })),
 createdAt:Date.now()
 });
@@ -732,6 +749,7 @@ state.plants=restored.plants||[];
 state.inventory=restored.inventory||{};
 state.orders=restored.orders||[];
 state.logs=restored.logs||[];
+state.history=restored.history||[];
 
 state.history=state.history.filter(
 x=>String(x.id)!==String(id)
@@ -920,6 +938,8 @@ o=>String(o.id)===String(id)
 
 if(!order)return;
 
+if(order.items.length===0)return;
+
 const canComplete=order.items.every(item=>{
 
 return (state.inventory[item.name]||0)>=item.amount;
@@ -1045,7 +1065,7 @@ card.innerHTML=`
 
 <input
 placeholder="Имя клиента"
-value="${order.client||''}"
+value="${escapeHtml(order.client||'')}"
 oninput="updateOrderClient('${order.id}',this.value)"
 style="width:220px;margin-bottom:10px;">
 
@@ -1055,7 +1075,7 @@ style="width:220px;margin-bottom:10px;">
 
 <input
 placeholder="dd/mm/yyyy"
-value="${order.dueDate||''}"
+value="${escapeHtml(order.dueDate||'')}"
 oninput="updateOrderDate('${order.id}',this.value)"
 style="width:120px;">
 
@@ -1064,7 +1084,7 @@ style="width:120px;">
 <input
 type="number"
 placeholder="Дней"
-value="${order.deliveryDays||''}"
+value="${escapeHtml(order.deliveryDays||'')}"
 oninput="updateOrderDays('${order.id}',this.value)"
 style="width:70px;">
 
@@ -1083,7 +1103,7 @@ style="width:70px;">
 <input
 type="number"
 placeholder="$"
-value="${order.totalPrice||''}"
+value="${escapeHtml(order.totalPrice||'')}"
 oninput="updateOrderPrice('${order.id}',this.value)"
 style="width:120px;">
 
@@ -1231,6 +1251,7 @@ if(!state.plants) state.plants=[];
 if(!state.inventory) state.inventory={};
 if(!state.orders) state.orders=[];
 if(!state.logs) state.logs=[];
+if(!state.history) state.history=[];
 
 seeds.forEach(seed=>{
 if(state.inventory[seed]===undefined){
@@ -1272,6 +1293,7 @@ if(!state.plants) state.plants=[];
 if(!state.inventory) state.inventory={};
 if(!state.orders) state.orders=[];
 if(!state.logs) state.logs=[];
+if(!state.history) state.history=[];
 
 renderSeeds();
 renderGrowth();
