@@ -1377,16 +1377,11 @@ schema:'public',
 table:'ranch_app'
 },payload=>{
 
+console.log('REALTIME UPDATE',payload);
+
 if(payload.new && payload.new.data){
 
 state=payload.new.data;
-
-renderSeeds();
-renderGrowth();
-renderInventory();
-renderOrders();
-renderLogs();
-renderHistory();
 
 if(!state.plants) state.plants=[];
 if(!state.inventory) state.inventory={};
@@ -1401,11 +1396,18 @@ renderOrders();
 renderLogs();
 renderHistory();
 
-setTimeout(renderHistory,300);
 }
 
 })
-.subscribe();
+.subscribe((status)=>{
+
+console.log('REALTIME STATUS',status);
+
+if(status==='SUBSCRIBED'){
+console.log('Realtime connected');
+}
+
+});
 
 setInterval(renderGrowth,1000);
 </script>
