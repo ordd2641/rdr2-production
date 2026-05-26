@@ -109,24 +109,7 @@ box-shadow:0 6px 20px rgba(0,0,0,.25);
 }
 </style>
 </head>
-
 <body>
-<div id="debug-status" style="
-position:fixed;
-bottom:10px;
-right:10px;
-background:#111;
-color:#0f0;
-padding:8px 12px;
-border-radius:8px;
-font-size:12px;
-z-index:99999;
-max-width:320px;
-font-family:monospace;
-">
-SYNC READY
-</div>
-
 
 <div id="auth" class="auth">
 <div class="auth-box">
@@ -214,6 +197,12 @@ const USERS={
 'victory':'Виктория Хельман'
 };
 
+const PERISHABLE_ITEMS = [
+'Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат',
+'Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко',
+'Виноград','Баранина','Говядина','Мясо дичи','Оленина','Мясо крупной дичи',
+'Мясо птицы','Яйца'
+];
 
 const HARVEST_YIELD = {
 'Рис':4,
@@ -254,7 +243,45 @@ const HARVEST_YIELD = {
 'Тростник':4
 };
 
-const GROWTH_TIMES = {"Хлопок": 225, "Томат": 195, "Брокколи": 240, "Агава": 225, "Капуста": 180, "Алоэ": 260, "Рис": 150, "Шпинат": 210, "Редис": 180, "Картофель": 180, "Душица": 210, "Каннабис": 180, "Английская булава": 210, "Аляскинский женьшень": 150, "Листья Коки": 180, "Американский женьшень": 150, "Хмель": 180, "Черника": 195, "Черная смородина": 195, "Чок Дейзи": 210, "Кровавый цветок": 180, "Кукуруза": 225, "Ползучая слива": 240, "Ползучий Тимьян": 180, "Дикий чеснок": 150, "Олеандровый шалфей": 210, "Молочай":180, "Гриб-зонтик":240, "Перийный Мак":210, "Дикая мята":150, "Дикая морковь":150, "Красный шалфей":210, "Красная Малина":210, "Зимняя Ягода":210, "Тысячелистник":195, "Тростник":240, "Пшеница":210};
+const GROWTH_TIMES = {
+"Хлопок":225,
+"Томат":195,
+"Брокколи":240,
+"Агава":225,
+"Капуста":180,
+"Алоэ":260,
+"Рис":150,
+"Шпинат":210,
+"Редис":180,
+"Картофель":180,
+"Душица":210,
+"Каннабис":180,
+"Английская булава":210,
+"Аляскинский женьшень":150,
+"Листья Коки":180,
+"Американский женьшень":150,
+"Хмель":180,
+"Черника":195,
+"Черная смородина":195,
+"Чок Дейзи":210,
+"Кровавый цветок":180,
+"Кукуруза":225,
+"Ползучая слива":240,
+"Ползучий Тимьян":180,
+"Дикий чеснок":150,
+"Олеандровый шалфей":210,
+"Молочай":180,
+"Гриб-зонтик":240,
+"Перийный Мак":210,
+"Дикая мята":150,
+"Дикая морковь":150,
+"Красный шалфей":210,
+"Красная Малина":210,
+"Зимняя Ягода":210,
+"Тысячелистник":195,
+"Тростник":240,
+"Пшеница":210
+};
 
 const seeds=[
 'Агава','Алоэ','Аляскинский женьшень','Английская булава','Американский женьшень',
@@ -280,6 +307,7 @@ let state={plants:[],inventory:{},orders:[],logs:[],history:[]};
 
 let saveTimeout=null;
 let currentUser='';
+let isSaving=false;
 
 function escapeHtml(value){
 return String(value ?? '')
@@ -288,6 +316,22 @@ return String(value ?? '')
 .replace(/>/g,'&gt;')
 .replace(/"/g,'&quot;')
 .replace(/'/g,'&#39;');
+}
+
+function isPerishable(name){
+return PERISHABLE_ITEMS.includes(name);
+}
+
+function getPerishableColor(name){
+return isPerishable(name)?'#ff7f7f':'#8fd18f';
+}
+
+function getPerishableText(name){
+return isPerishable(name)?'Портится':'Не портится';
+}
+
+function generateId(){
+return `${Date.now()}-${Math.random().toString(36).substr(2,9)}`;
 }
 
 function login(){
@@ -347,14 +391,10 @@ activeBtn.classList.add('active');
 }
 
 
-function addLog(text){
+async function addLog(text){
 state.logs.unshift({text,createdAt:Date.now()});
 state.logs=state.logs.slice(0,100);
 renderLogs();
-renderHistory();
-
-
-queueSave();
 }
 
 function renderSeeds(){
@@ -379,8 +419,8 @@ ${seed}
 Урожай: x${HARVEST_YIELD[seed]||5}
 </div>
 
-<div class="small" style="color:${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Яйца'].includes(seed)?'#ff7f7f':'#8fd18f'};">
-${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Яйца'].includes(seed)?'Портится':'Не портится'}
+<div class="small" style="color:${getPerishableColor(seed)};">
+${getPerishableText(seed)}
 </div>
 
 <div style="display:flex;gap:8px;margin-top:10px">
@@ -400,23 +440,22 @@ root.appendChild(card);
 });
 }
 
-function plant(seed){
+async function plant(seed){
 const amount=parseInt(document.getElementById(`seed-${seed}`).value)||0;
 if(amount<=0)return;
 pushHistory(`Посадка ${seed} x${amount}`);
 state.plants.unshift({
-id:Date.now(),
+id:generateId(),
 name:seed,
 amount,
 plantedBy:currentUser,
 readyAt:Date.now()+((GROWTH_TIMES[seed]||180)*60000)
 });
 addLog(`${currentUser} посадил ${seed} x${amount}`);
+document.getElementById(`seed-${seed}`).value='';
 renderGrowth();
-queueSave();
+await save();
 }
-
-
 
 function renderGrowth(){
 
@@ -575,7 +614,7 @@ addLog(`${currentUser} собрал ${plant.name} x${total}`);
 renderGrowth();
 renderInventory();
 
-queueSave();
+await save();
 
 }
 
@@ -601,29 +640,12 @@ root.innerHTML='<div class="grid">'+seeds.map(seed=>`
 async function saveInventory(name){
 const val=parseInt(document.getElementById(`manual-${name}`).value)||0;
 if(val<=0)return;
-
 pushHistory(`Добавление на склад ${name} x${val}`);
-
 state.inventory[name]=(state.inventory[name]||0)+val;
-
 addLog(`${currentUser} добавил ${name} x${val}`);
-
+document.getElementById(`manual-${name}`).value='';
 renderInventory();
-
-const ok=await save();
-
-if(ok){
-const {data}=await supabaseClient
-.from('ranch_app')
-.select('*')
-.eq('id',1)
-.single();
-
-if(data&&data.data){
-state=data.data;
-renderInventory();
-}
-}
+await save();
 }
 
 function renderInventory(){
@@ -635,7 +657,7 @@ root.innerHTML='';
 const search=(document.getElementById('inventory-search').value||'').toLowerCase();
 
 Object.entries(state.inventory)
-.filter(([name])=>name.toLowerCase().includes(search))
+.filter(([name,val])=>val>0 && name.toLowerCase().includes(search))
 .sort((a,b)=>a[0].localeCompare(b[0],'ru'))
 .forEach(([name,val])=>{
 
@@ -655,8 +677,8 @@ card.innerHTML=`
 Количество: ${val}
 </div>
 
-<div class="small" style="margin-top:6px;color:${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Баранина','Говядина','Мясо дичи','Оленина','Мясо крупной дичи','Мясо птицы','Яйца'].includes(name)?'#ff7f7f':'#8fd18f'};">
-${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Баранина','Говядина','Мясо дичи','Оленина','Мясо крупной дичи','Мясо птицы','Яйца'].includes(name)?'Портится':'Не портится'}
+<div class="small" style="margin-top:6px;color:${getPerishableColor(name)};">
+${getPerishableText(name)}
 </div>
 
 </div>
@@ -733,22 +755,8 @@ state.inventory[name]=value;
 addLog(`${currentUser} изменил склад ${name} x${value}`);
 
 renderInventory();
-renderHistory();
 
-const ok=await save();
-
-if(ok){
-const {data}=await supabaseClient
-.from('ranch_app')
-.select('*')
-.eq('id',1)
-.single();
-
-if(data&&data.data){
-state=data.data;
-renderInventory();
-}
-}
+await save();
 }
 
 
@@ -760,14 +768,13 @@ state.history=[];
 }
 
 state.history.unshift({
-id:String(Date.now()+Math.random()),
+id:generateId(),
 action,
 snapshot:JSON.parse(JSON.stringify({
 plants:state.plants,
 inventory:state.inventory,
 orders:state.orders,
-logs:state.logs,
-history:state.history
+logs:state.logs
 })),
 createdAt:Date.now()
 });
@@ -818,26 +825,25 @@ root.appendChild(card);
 
 function undoAction(id){
 
-const item=state.history.find(
+const historyIndex=state.history.findIndex(
 x=>String(x.id)===String(id)
 );
 
-if(!item)return;
+if(historyIndex<0)return;
 
+const item=state.history[historyIndex];
 const restored=item.snapshot;
 
-state.plants=restored.plants||[];
-state.inventory=restored.inventory||{};
-state.orders=restored.orders||[];
-state.logs=restored.logs||[];
-state.history=restored.history||[];
+state.plants=JSON.parse(JSON.stringify(restored.plants||[]));
+state.inventory=JSON.parse(JSON.stringify(restored.inventory||{}));
+state.orders=JSON.parse(JSON.stringify(restored.orders||[]));
+state.logs=JSON.parse(JSON.stringify(restored.logs||[]));
 
-state.history=state.history.filter(
-x=>String(x.id)!==String(id)
-);
+state.history=state.history.slice(0,historyIndex);
 
-addLog(`${currentUser} отменил действие`);
+addLog(`${currentUser} отменил действие: ${item.action}`);
 
+renderSeeds();
 renderGrowth();
 renderInventory();
 renderOrders();
@@ -853,7 +859,7 @@ function createOrder(){
 pushHistory('Создание заказа');
 
 state.orders.unshift({
-id:String(Date.now()+Math.random()),
+id:generateId(),
 client:'',
 dueDate:'',
 deliveryDays:'',
@@ -962,6 +968,8 @@ amount
 }
 
 addLog(`${currentUser} добавил ${name} x${amount} в заказ`);
+
+input.value='';
 
 renderOrders();
 
@@ -1091,9 +1099,9 @@ const stock=state.inventory[item.name]||0;
 
 const missing=Math.max(0,item.amount-stock);
 
-const yieldAmount = HARVEST_YIELD[item.name] || 5;
+const yieldAmount=HARVEST_YIELD[item.name]||5;
 
-const needSeeds = Math.ceil(missing / yieldAmount);
+const needSeeds=Math.ceil(missing/yieldAmount);
 
 return `
 <div style="padding:8px;border:1px solid #384250;border-radius:8px;margin-bottom:8px;background:${stock>=item.amount?'rgba(40,90,40,.25)':'rgba(90,40,40,.25)'};">
@@ -1287,7 +1295,7 @@ root.innerHTML='';
 state.logs.forEach(log=>{
 const card=document.createElement('div');
 card.className='card';
-card.innerHTML=`<div class="small">${new Date(log.createdAt).toLocaleString()}</div><div style="font-size:12px">${log.text}</div>`;
+card.innerHTML=`<div class="small">${new Date(log.createdAt).toLocaleString()}</div><div style="font-size:12px">${escapeHtml(log.text)}</div>`;
 root.appendChild(card);
 });
 }
@@ -1298,14 +1306,21 @@ clearTimeout(saveTimeout);
 
 saveTimeout=setTimeout(()=>{
 
-save().catch(console.error);
+save().catch(e=>{
+console.error('Save error:',e);
+});
 
-},50);
+},300);
 
 }
 
 async function save(){
+
+if(isSaving)return false;
+
 try{
+
+isSaving=true;
 
 const payload={
 plants:state.plants||[],
@@ -1315,35 +1330,42 @@ logs:state.logs||[],
 history:state.history||[]
 };
 
-const response=await supabaseClient
+const {data,error}=await supabaseClient
 .from('ranch_app')
 .update({data:payload})
 .eq('id',1)
 .select();
 
-if(response.error){
-console.error('SUPABASE SAVE ERROR',response.error);
+if(error){
+console.error('Save error:',error);
 return false;
 }
 
 return true;
 
 }catch(e){
-console.error('SAVE ERROR',e);
+console.error('Save exception:',e);
 return false;
-}
+}finally{
+isSaving=false;
 }
 
+}
 
 async function load(){
 
 try{
 
-const {data}=await supabaseClient
+const {data,error}=await supabaseClient
 .from('ranch_app')
 .select('*')
 .eq('id',1)
 .single();
+
+if(error){
+console.error('Load error:',error);
+return;
+}
 
 if(data&&data.data){
 state=data.data;
@@ -1355,12 +1377,6 @@ if(!state.orders) state.orders=[];
 if(!state.logs) state.logs=[];
 if(!state.history) state.history=[];
 
-seeds.forEach(seed=>{
-if(state.inventory[seed]===undefined){
-state.inventory[seed]=0;
-}
-});
-
 renderSeeds();
 renderGrowth();
 renderInventory();
@@ -1368,14 +1384,11 @@ renderOrders();
 renderLogs();
 renderHistory();
 
-
-
 }catch(e){
-console.error(e);
+console.error('Load error:',e);
 }
 
 }
-
 
 checkAuth();
 load();
@@ -1388,20 +1401,17 @@ schema:'public',
 table:'ranch_app'
 },payload=>{
 
+console.log('Realtime update received');
+
 if(payload.new && payload.new.data){
 
-const incoming=payload.new.data||{};
+state=payload.new.data;
 
-state={
-...state,
-...incoming,
-
-plants:incoming.plants||state.plants||[],
-inventory:incoming.inventory||state.inventory||{},
-orders:incoming.orders||state.orders||[],
-logs:incoming.logs||state.logs||[],
-history:incoming.history||state.history||[]
-};
+if(!state.plants) state.plants=[];
+if(!state.inventory) state.inventory={};
+if(!state.orders) state.orders=[];
+if(!state.logs) state.logs=[];
+if(!state.history) state.history=[];
 
 renderSeeds();
 renderGrowth();
@@ -1409,32 +1419,14 @@ renderInventory();
 renderOrders();
 renderLogs();
 renderHistory();
-
 
 }
 
 })
-.subscribe(async(status)=>{
+.subscribe((status)=>{
+
 console.log('Realtime status:',status);
 
-if(status==='SUBSCRIBED'){
-const {data}=await supabaseClient
-.from('ranch_app')
-.select('*')
-.eq('id',1)
-.single();
-
-if(data&&data.data){
-state=data.data;
-
-renderSeeds();
-renderGrowth();
-renderInventory();
-renderOrders();
-renderLogs();
-renderHistory();
-}
-}
 });
 
 setInterval(renderGrowth,1000);
