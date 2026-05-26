@@ -799,6 +799,22 @@ queueSave();
 
 }
 
+
+function updateOrderPrice(id,value){
+
+const order=state.orders.find(
+o=>String(o.id)===String(id)
+);
+
+if(!order)return;
+
+order.totalPrice=value;
+
+queueSave();
+
+}
+
+
 function updateOrderDays(id,value){
 
 const order=state.orders.find(
@@ -835,6 +851,8 @@ const existing=order.items.find(
 i=>i.name===name
 );
 
+pushHistory(`Добавление ${name} в заказ`);
+
 if(existing){
 existing.amount=amount;
 }else{
@@ -843,6 +861,8 @@ name,
 amount
 });
 }
+
+addLog(`${currentUser} добавил ${name} x${amount} в заказ`);
 
 renderOrders();
 
@@ -1052,6 +1072,21 @@ style="width:70px;">
 
 <div class="small" style="margin-top:8px;">
 Оформил: ${order.createdBy}
+</div>
+
+<div style="margin-top:10px;">
+
+<div class="small">
+Сумма заказа
+</div>
+
+<input
+type="number"
+placeholder="$"
+value="${order.totalPrice||''}"
+oninput="updateOrderPrice('${order.id}',this.value)"
+style="width:120px;">
+
 </div>
 
 </div>
