@@ -1259,12 +1259,33 @@ save().catch(()=>{});
 async function save(){
 try{
 
+const {data:remote}=await supabaseClient
+.from('ranch_app')
+.select('*')
+.eq('id',1)
+.single();
+
+const remoteState=remote?.data||{};
+
+const merged={
+...remoteState,
+plants:state.plants||[],
+inventory:state.inventory||{},
+orders:state.orders||[],
+logs:state.logs||[],
+history:state.history||[]
+};
+
 await supabaseClient
 .from('ranch_app')
-.update({data:state})
+.update({data:merged})
 .eq('id',1);
 
-}catch(e){}
+state=merged;
+
+}catch(e){
+console.error(e);
+}
 
 }
 
@@ -1322,13 +1343,18 @@ table:'ranch_app'
 
 if(payload.new && payload.new.data){
 
-state=payload.new.data;
+const incoming=payload.new.data||{};
 
-if(!state.plants) state.plants=[];
-if(!state.inventory) state.inventory={};
-if(!state.orders) state.orders=[];
-if(!state.logs) state.logs=[];
-if(!state.history) state.history=[];
+state={
+...state,
+...incoming,
+
+plants:incoming.plants||state.plants||[],
+inventory:incoming.inventory||state.inventory||{},
+orders:incoming.orders||state.orders||[],
+logs:incoming.logs||state.logs||[],
+history:incoming.history||state.history||[]
+};
 
 renderSeeds();
 renderGrowth();
