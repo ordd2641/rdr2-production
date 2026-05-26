@@ -90,8 +90,8 @@ background:#313a46;
 }
 
 button:disabled{
-cursor:not-allowed;
 opacity:0.5;
+cursor:not-allowed;
 }
 
 .small{
@@ -672,8 +672,9 @@ Object.entries(state.inventory)
 .sort((a,b)=>a[0].localeCompare(b[0],'ru'))
 .forEach(([name,val])=>{
 
-const isEmpty=val===0;
 const card=document.createElement('div');
+
+const isEmpty=val===0;
 
 card.className='card' + (isEmpty ? ' empty' : '');
 
@@ -697,7 +698,7 @@ ${getPerishableText(name)}
 
 <div style="display:flex;gap:6px;">
 
-<button onclick="toggleInventoryEdit('${name}')" ${isEmpty ? 'disabled' : ''}>
+<button onclick="toggleInventoryEdit('${name}')">
 ✎
 </button>
 
@@ -1333,15 +1334,14 @@ if(isSaving)return false;
 try{
 
 isSaving=true;
+isReceivingUpdate=true;
 
 const payload={
 plants:state.plants||[],
 inventory:state.inventory||{},
 orders:state.orders||[],
 logs:state.logs||[],
-history:state.history||[],
-updated_by:currentUser,
-updated_at:new Date().toISOString()
+history:state.history||[]
 };
 
 const {data,error}=await supabaseClient
@@ -1352,14 +1352,17 @@ const {data,error}=await supabaseClient
 
 if(error){
 console.error('Save error:',error);
+isReceivingUpdate=false;
 return false;
 }
 
 console.log('Save successful');
+isReceivingUpdate=false;
 return true;
 
 }catch(e){
 console.error('Save exception:',e);
+isReceivingUpdate=false;
 return false;
 }finally{
 isSaving=false;
@@ -1419,7 +1422,6 @@ table:'ranch_app'
 console.log('Realtime update received');
 
 if(isReceivingUpdate)return;
-if(payload.new && payload.new.updated_by === currentUser)return;
 
 if(payload.new && payload.new.data){
 
@@ -1437,8 +1439,6 @@ renderInventory();
 renderOrders();
 renderLogs();
 renderHistory();
-
-console.log('Realtime data updated');
 
 }
 
