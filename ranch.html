@@ -1330,6 +1330,8 @@ console.error(e);
 
 }
 
+
+
 checkAuth();
 load();
 
@@ -1367,7 +1369,28 @@ setTimeout(renderHistory,300);
 }
 
 })
-.subscribe();
+.subscribe(async(status)=>{
+console.log('Realtime status:',status);
+
+if(status==='SUBSCRIBED'){
+const {data}=await supabaseClient
+.from('ranch_app')
+.select('*')
+.eq('id',1)
+.single();
+
+if(data&&data.data){
+state=data.data;
+
+renderSeeds();
+renderGrowth();
+renderInventory();
+renderOrders();
+renderLogs();
+renderHistory();
+}
+}
+});
 
 setInterval(renderGrowth,1000);
 </script>
