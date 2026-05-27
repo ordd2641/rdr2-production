@@ -1347,8 +1347,7 @@ history:state.history||[]
 const {data,error}=await supabaseClient
 .from('ranch_app')
 .update({data:payload})
-.eq('id',1)
-.select();
+.eq('id',1);
 
 if(error){
 console.error('Save error:',error);
@@ -1377,16 +1376,15 @@ try{
 const {data,error}=await supabaseClient
 .from('ranch_app')
 .select('*')
-.eq('id',1)
-.single();
+.eq('id',1);
 
 if(error){
 console.error('Load error:',error);
 return;
 }
 
-if(data&&data.data){
-state=data.data;
+if(data && data.length>0 && data[0].data){
+state=data[0].data;
 }
 
 if(!state.plants) state.plants=[];
