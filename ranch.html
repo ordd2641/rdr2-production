@@ -204,7 +204,9 @@ const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const USERS={
 '1111':'Виктор Харт',
 'ludvig':'Людвиг Хельман',
-'victory':'Виктория Хельман'
+'victory':'Виктория Хельман',
+'rob':'Роберт Смит',
+'work':'Житель Эмеральд'
 };
 
 const PERISHABLE_ITEMS = [
@@ -310,6 +312,61 @@ let saveTimeout=null;
 let currentUser='';
 let isSaving=false;
 let isReceivingUpdate=false;
+
+function hasRealData(data){
+
+if(!data)return false;
+
+const inventory=data.inventory||{};
+const orders=data.orders||[];
+const plants=data.plants||[];
+
+const inventoryTotal=Object.values(inventory)
+.reduce((sum,val)=>sum+(parseInt(val)||0),0);
+
+return inventoryTotal>0 || orders.length>0 || plants.length>0;
+}
+
+function saveLocalBackup(){
+
+try{
+
+localStorage.setItem(
+'ranch_backup',
+JSON.stringify({
+timestamp:Date.now(),
+data:state
+})
+);
+
+}catch(e){
+console.log('Backup save failed',e);
+}
+
+}
+
+function loadLocalBackup(){
+
+try{
+
+const raw=localStorage.getItem('ranch_backup');
+
+if(!raw)return null;
+
+const parsed=JSON.parse(raw);
+
+if(parsed && parsed.data && hasRealData(parsed.data)){
+return parsed.data;
+}
+
+}catch(e){
+console.log('Backup load failed',e);
+}
+
+return null;
+
+}
+
 
 function escapeHtml(value){
 return String(value ?? '')
@@ -1347,14 +1404,13 @@ logs:state.logs||[],
 history:state.history||[]
 };
 
-const inventoryCount=Object.keys(payload.inventory||{}).length;
-const ordersCount=(payload.orders||[]).length;
-
-if(inventoryCount===0 && ordersCount===0){
+if(!hasRealData(payload)){
 console.log('Blocked empty save');
 isReceivingUpdate=false;
 return false;
 }
+
+saveLocalBackup();
 
 const {data,error}=await supabaseClient
 .from('ranch_app')
@@ -1398,15 +1454,30 @@ if(data && data.length > 0 && data[0].data){
 
 const loaded=data[0].data;
 
-const inventoryCount=Object.keys(loaded.inventory||{}).length;
-const ordersCount=(loaded.orders||[]).length;
+if(!hasRealData(loaded)){
 
-if(inventoryCount===0 && ordersCount===0){
 console.log('Blocked empty database load');
+
+const backup=loadLocalBackup();
+
+if(backup){
+
+console.log('Local backup restored');
+
+state=backup;
+
+}else{
+
 return;
+
 }
 
+}else{
+
 state=loaded;
+saveLocalBackup();
+
+}
 
 } else {
 console.log('No data found, initializing fresh state');
@@ -1453,13 +1524,12 @@ if(payload.new && payload.new.data){
 
 const incoming=payload.new.data;
 
-const incomingInventoryCount=Object.keys(incoming.inventory||{}).length;
-const incomingOrdersCount=(incoming.orders||[]).length;
-
-if(incomingInventoryCount===0 && incomingOrdersCount===0){
+if(!hasRealData(incoming)){
 console.log('Blocked empty realtime payload');
 return;
 }
+
+saveLocalBackup();
 
 state=incoming;
 
