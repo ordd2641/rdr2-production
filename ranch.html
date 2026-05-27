@@ -1347,6 +1347,15 @@ logs:state.logs||[],
 history:state.history||[]
 };
 
+const inventoryCount=Object.keys(payload.inventory||{}).length;
+const ordersCount=(payload.orders||[]).length;
+
+if(inventoryCount===0 && ordersCount===0){
+console.log('Blocked empty save');
+isReceivingUpdate=false;
+return false;
+}
+
 const {data,error}=await supabaseClient
 .from('ranch_app')
 .update({data:payload})
@@ -1386,9 +1395,22 @@ console.error('Load error:',error);
 }
 
 if(data && data.length > 0 && data[0].data){
-state=data[0].data;
+
+const loaded=data[0].data;
+
+const inventoryCount=Object.keys(loaded.inventory||{}).length;
+const ordersCount=(loaded.orders||[]).length;
+
+if(inventoryCount===0 && ordersCount===0){
+console.log('Blocked empty database load');
+return;
+}
+
+state=loaded;
+
 } else {
 console.log('No data found, initializing fresh state');
+return;
 }
 
 if(!state.plants) state.plants=[];
@@ -1429,7 +1451,17 @@ if(isReceivingUpdate)return;
 
 if(payload.new && payload.new.data){
 
-state=payload.new.data;
+const incoming=payload.new.data;
+
+const incomingInventoryCount=Object.keys(incoming.inventory||{}).length;
+const incomingOrdersCount=(incoming.orders||[]).length;
+
+if(incomingInventoryCount===0 && incomingOrdersCount===0){
+console.log('Blocked empty realtime payload');
+return;
+}
+
+state=incoming;
 
 if(!state.plants) state.plants=[];
 if(!state.inventory) state.inventory={};
