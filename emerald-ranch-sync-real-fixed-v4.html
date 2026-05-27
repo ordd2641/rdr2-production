@@ -345,6 +345,14 @@ function generateId(){
 return `${Date.now()}-${Math.random().toString(36).substr(2,9)}`;
 }
 
+function initializeInventory(){
+seeds.forEach(seed=>{
+if(state.inventory[seed]===undefined){
+state.inventory[seed]=0;
+}
+});
+}
+
 function login(){
 const pass=document.getElementById('password').value.trim();
 if(!USERS[pass]){
@@ -1380,11 +1388,12 @@ const {data,error}=await supabaseClient
 
 if(error){
 console.error('Load error:',error);
-return;
 }
 
-if(data && data.length>0 && data[0].data){
+if(data && data.length > 0 && data[0].data){
 state=data[0].data;
+} else {
+console.log('No data found, initializing fresh state');
 }
 
 if(!state.plants) state.plants=[];
@@ -1392,6 +1401,8 @@ if(!state.inventory) state.inventory={};
 if(!state.orders) state.orders=[];
 if(!state.logs) state.logs=[];
 if(!state.history) state.history=[];
+
+initializeInventory();
 
 renderSeeds();
 renderGrowth();
@@ -1430,6 +1441,8 @@ if(!state.inventory) state.inventory={};
 if(!state.orders) state.orders=[];
 if(!state.logs) state.logs=[];
 if(!state.history) state.history=[];
+
+initializeInventory();
 
 renderSeeds();
 renderGrowth();
