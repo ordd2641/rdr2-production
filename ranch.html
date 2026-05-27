@@ -63,6 +63,11 @@ padding:12px;
 box-shadow:0 3px 10px rgba(0,0,0,.18);
 }
 
+.card.empty{
+background:#1a1f26;
+opacity:0.7;
+}
+
 input,button{
 padding:8px;
 border-radius:8px;
@@ -82,6 +87,11 @@ transition:.15s;
 
 button:hover{
 background:#313a46;
+}
+
+button:disabled{
+opacity:0.5;
+cursor:not-allowed;
 }
 
 .small{
@@ -197,6 +207,12 @@ const USERS={
 'victory':'Виктория Хельман'
 };
 
+const PERISHABLE_ITEMS = [
+'Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат',
+'Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко',
+'Виноград','Баранина','Говядина','Мясо дичи','Оленина','Мясо крупной дичи',
+'Мясо птицы','Яйца'
+];
 
 const HARVEST_YIELD = {
 'Рис':4,
@@ -301,6 +317,8 @@ let state={plants:[],inventory:{},orders:[],logs:[],history:[]};
 
 let saveTimeout=null;
 let currentUser='';
+let isSaving=false;
+let isReceivingUpdate=false;
 
 function escapeHtml(value){
 return String(value ?? '')
@@ -309,6 +327,30 @@ return String(value ?? '')
 .replace(/>/g,'&gt;')
 .replace(/"/g,'&quot;')
 .replace(/'/g,'&#39;');
+}
+
+function isPerishable(name){
+return PERISHABLE_ITEMS.includes(name);
+}
+
+function getPerishableColor(name){
+return isPerishable(name)?'#ff7f7f':'#8fd18f';
+}
+
+function getPerishableText(name){
+return isPerishable(name)?'Портится':'Не портится';
+}
+
+function generateId(){
+return `${Date.now()}-${Math.random().toString(36).substr(2,9)}`;
+}
+
+function initializeInventory(){
+seeds.forEach(seed=>{
+if(state.inventory[seed]===undefined){
+state.inventory[seed]=0;
+}
+});
 }
 
 function login(){
@@ -372,10 +414,6 @@ async function addLog(text){
 state.logs.unshift({text,createdAt:Date.now()});
 state.logs=state.logs.slice(0,100);
 renderLogs();
-renderHistory();
-
-setTimeout(renderHistory,300);
-await save();
 }
 
 function renderSeeds(){
@@ -400,8 +438,8 @@ ${seed}
 Урожай: x${HARVEST_YIELD[seed]||5}
 </div>
 
-<div class="small" style="color:${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Яйца'].includes(seed)?'#ff7f7f':'#8fd18f'};">
-${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Яйца'].includes(seed)?'Портится':'Не портится'}
+<div class="small" style="color:${getPerishableColor(seed)};">
+${getPerishableText(seed)}
 </div>
 
 <div style="display:flex;gap:8px;margin-top:10px">
@@ -426,18 +464,17 @@ const amount=parseInt(document.getElementById(`seed-${seed}`).value)||0;
 if(amount<=0)return;
 pushHistory(`Посадка ${seed} x${amount}`);
 state.plants.unshift({
-id:Date.now(),
+id:generateId(),
 name:seed,
 amount,
 plantedBy:currentUser,
 readyAt:Date.now()+((GROWTH_TIMES[seed]||180)*60000)
 });
 addLog(`${currentUser} посадил ${seed} x${amount}`);
+document.getElementById(`seed-${seed}`).value='';
 renderGrowth();
 await save();
 }
-
-
 
 function renderGrowth(){
 
@@ -625,8 +662,9 @@ if(val<=0)return;
 pushHistory(`Добавление на склад ${name} x${val}`);
 state.inventory[name]=(state.inventory[name]||0)+val;
 addLog(`${currentUser} добавил ${name} x${val}`);
+document.getElementById(`manual-${name}`).value='';
 renderInventory();
-queueSave();
+await save();
 }
 
 function renderInventory(){
@@ -644,7 +682,9 @@ Object.entries(state.inventory)
 
 const card=document.createElement('div');
 
-card.className='card';
+const isEmpty=val===0;
+
+card.className='card' + (isEmpty ? ' empty' : '');
 
 card.innerHTML=`
 
@@ -658,8 +698,8 @@ card.innerHTML=`
 Количество: ${val}
 </div>
 
-<div class="small" style="margin-top:6px;color:${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Баранина','Говядина','Мясо дичи','Оленина','Мясо крупной дичи','Мясо птицы','Яйца'].includes(name)?'#ff7f7f':'#8fd18f'};">
-${['Черная смородина','Красная Малина','Редис','Кукуруза','Черника','Томат','Капуста','Ползучая слива','Зимняя Ягода','Груша','Персик','Яблоко','Виноград','Баранина','Говядина','Мясо дичи','Оленина','Мясо крупной дичи','Мясо птицы','Яйца'].includes(name)?'Портится':'Не портится'}
+<div class="small" style="margin-top:6px;color:${getPerishableColor(name)};">
+${getPerishableText(name)}
 </div>
 
 </div>
@@ -736,9 +776,8 @@ state.inventory[name]=value;
 addLog(`${currentUser} изменил склад ${name} x${value}`);
 
 renderInventory();
-renderHistory();
 
-queueSave();
+await save();
 }
 
 
@@ -750,14 +789,13 @@ state.history=[];
 }
 
 state.history.unshift({
-id:String(Date.now()+Math.random()),
+id:generateId(),
 action,
 snapshot:JSON.parse(JSON.stringify({
 plants:state.plants,
 inventory:state.inventory,
 orders:state.orders,
-logs:state.logs,
-history:state.history
+logs:state.logs
 })),
 createdAt:Date.now()
 });
@@ -808,26 +846,25 @@ root.appendChild(card);
 
 function undoAction(id){
 
-const item=state.history.find(
+const historyIndex=state.history.findIndex(
 x=>String(x.id)===String(id)
 );
 
-if(!item)return;
+if(historyIndex<0)return;
 
+const item=state.history[historyIndex];
 const restored=item.snapshot;
 
-state.plants=restored.plants||[];
-state.inventory=restored.inventory||{};
-state.orders=restored.orders||[];
-state.logs=restored.logs||[];
-state.history=restored.history||[];
+state.plants=JSON.parse(JSON.stringify(restored.plants||[]));
+state.inventory=JSON.parse(JSON.stringify(restored.inventory||{}));
+state.orders=JSON.parse(JSON.stringify(restored.orders||[]));
+state.logs=JSON.parse(JSON.stringify(restored.logs||[]));
 
-state.history=state.history.filter(
-x=>String(x.id)!==String(id)
-);
+state.history=state.history.slice(0,historyIndex);
 
-addLog(`${currentUser} отменил действие`);
+addLog(`${currentUser} отменил действие: ${item.action}`);
 
+renderSeeds();
 renderGrowth();
 renderInventory();
 renderOrders();
@@ -843,7 +880,7 @@ function createOrder(){
 pushHistory('Создание заказа');
 
 state.orders.unshift({
-id:String(Date.now()+Math.random()),
+id:generateId(),
 client:'',
 dueDate:'',
 deliveryDays:'',
@@ -952,6 +989,8 @@ amount
 }
 
 addLog(`${currentUser} добавил ${name} x${amount} в заказ`);
+
+input.value='';
 
 renderOrders();
 
@@ -1277,7 +1316,7 @@ root.innerHTML='';
 state.logs.forEach(log=>{
 const card=document.createElement('div');
 card.className='card';
-card.innerHTML=`<div class="small">${new Date(log.createdAt).toLocaleString()}</div><div style="font-size:12px">${log.text}</div>`;
+card.innerHTML=`<div class="small">${new Date(log.createdAt).toLocaleString()}</div><div style="font-size:12px">${escapeHtml(log.text)}</div>`;
 root.appendChild(card);
 });
 }
@@ -1288,7 +1327,9 @@ clearTimeout(saveTimeout);
 
 saveTimeout=setTimeout(()=>{
 
-save().catch(()=>{});
+save().catch(e=>{
+console.error('Save error:',e);
+});
 
 },300);
 
@@ -1296,7 +1337,12 @@ save().catch(()=>{});
 
 async function save(){
 
+if(isSaving)return false;
+
 try{
+
+isSaving=true;
+isReceivingUpdate=true;
 
 const payload={
 plants:state.plants||[],
@@ -1306,21 +1352,27 @@ logs:state.logs||[],
 history:state.history||[]
 };
 
-const {error}=await supabaseClient
+const {data,error}=await supabaseClient
 .from('ranch_app')
 .update({data:payload})
 .eq('id',1);
 
 if(error){
-console.error('SUPABASE SAVE ERROR',error);
+console.error('Save error:',error);
+isReceivingUpdate=false;
 return false;
 }
 
+console.log('Save successful');
+isReceivingUpdate=false;
 return true;
 
 }catch(e){
-console.error('SAVE ERROR',e);
+console.error('Save exception:',e);
+isReceivingUpdate=false;
 return false;
+}finally{
+isSaving=false;
 }
 
 }
@@ -1329,14 +1381,19 @@ async function load(){
 
 try{
 
-const {data}=await supabaseClient
+const {data,error}=await supabaseClient
 .from('ranch_app')
 .select('*')
-.eq('id',1)
-.single();
+.eq('id',1);
 
-if(data&&data.data){
-state=data.data;
+if(error){
+console.error('Load error:',error);
+}
+
+if(data && data.length > 0 && data[0].data){
+state=data[0].data;
+} else {
+console.log('No data found, initializing fresh state');
 }
 
 if(!state.plants) state.plants=[];
@@ -1345,11 +1402,7 @@ if(!state.orders) state.orders=[];
 if(!state.logs) state.logs=[];
 if(!state.history) state.history=[];
 
-seeds.forEach(seed=>{
-if(state.inventory[seed]===undefined){
-state.inventory[seed]=0;
-}
-});
+initializeInventory();
 
 renderSeeds();
 renderGrowth();
@@ -1358,10 +1411,8 @@ renderOrders();
 renderLogs();
 renderHistory();
 
-setTimeout(renderHistory,300);
-
 }catch(e){
-console.error(e);
+console.error('Load error:',e);
 }
 
 }
@@ -1377,7 +1428,9 @@ schema:'public',
 table:'ranch_app'
 },payload=>{
 
-console.log('REALTIME UPDATE',payload);
+console.log('Realtime update received');
+
+if(isReceivingUpdate)return;
 
 if(payload.new && payload.new.data){
 
@@ -1388,6 +1441,8 @@ if(!state.inventory) state.inventory={};
 if(!state.orders) state.orders=[];
 if(!state.logs) state.logs=[];
 if(!state.history) state.history=[];
+
+initializeInventory();
 
 renderSeeds();
 renderGrowth();
@@ -1401,11 +1456,7 @@ renderHistory();
 })
 .subscribe((status)=>{
 
-console.log('REALTIME STATUS',status);
-
-if(status==='SUBSCRIBED'){
-console.log('Realtime connected');
-}
+console.log('Realtime status:',status);
 
 });
 
